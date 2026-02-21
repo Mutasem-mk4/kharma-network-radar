@@ -67,19 +67,23 @@ def run_radar(log_enabled=False, proc_filter=None, malware_only=False, auto_kill
             script = os.path.abspath(sys.argv[0])
             params = ' '.join([f'"{arg}"' for arg in sys.argv[1:]])
             
-            # If we are compiled by PyInstaller, sys.executable == script
+            # Windows UAC Elevation Logic
+            # We explicitly invoke the Python interpreter natively to avoid exe wrapper issues
             if getattr(sys, 'frozen', False):
-                # Running as PyInstaller executable
-                ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, params, None, 1)
-            elif script.lower().endswith('.exe'):
-                # Running as a pip-installed console script (e.g. kharma.exe)
-                # We bypass the wrapper and call the python module directly to avoid crash loops
-                module_args = f'-m kharma.main {params}'
-                ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, module_args, None, 1)
+                # When packaged as a PyInstaller executable
+                exe_path = sys.executable
+                cmd_args = ' '.join([f'"{arg}"' for arg in sys.argv[1:]])
+                ctypes.windll.shell32.ShellExecuteW(None, "runas", exe_path, cmd_args, None, 1)
             else:
-                # Running as Python script directly
-                ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, f'"{script}" {params}', None, 1)
-            
+                # When running as a pip-installed script or raw python script
+                python_exe = sys.executable
+                # Extract arguments passed to the script
+                args = ' '.join([f'"{arg}"' for arg in sys.argv[1:]])
+                module_call = f'-m kharma.main {args}'
+                
+                # Execute python explicitly as Admin
+                ctypes.windll.shell32.ShellExecuteW(None, "runas", python_exe, module_call, None, 1)
+                
             # Exit this unprivileged instance
             sys.exit(0)
     else:
@@ -87,30 +91,38 @@ def run_radar(log_enabled=False, proc_filter=None, malware_only=False, auto_kill
             console.print("[yellow]Warning: Kharma is running without Root privileges. Many connections will be hidden. Try 'sudo kharma'.[/yellow]")
             time.sleep(2)
 
-    console.print("[cyan]Initializing Kharma Radar...[/cyan]")
-    console.print("[dim]Checking Intel Databases...[/dim]")
-    scanner = NetworkScanner()
-    geoip = GeoIPResolver()
-    intel = ThreatIntelligence()
-    logger = TrafficLogger() if log_enabled else None
-    
-    if log_enabled:
-        console.print("[dim]Traffic Logging ENABLED. Writing to history database.[/dim]")
-    if proc_filter:
-        console.print(f"[dim]Filtering for process: '{proc_filter}'[/dim]")
-    if malware_only:
-        console.print("[bold red]MALWARE-ONLY MODE ENABLED. Hide all safe traffic.[/bold red]")
-    if auto_kill:
-        console.print("[bold white on red blink] 🛡️  AUTO-KILL IPS ENABLED. Malware connections will be terminated instantly. [/bold white on red blink]")
-    
-    with Live(create_radar_table(scanner, geoip, intel, logger, proc_filter, malware_only, auto_kill), console=console, refresh_per_second=2) as live:
-        try:
-            while True:
-                live.update(create_radar_table(scanner, geoip, intel, logger, proc_filter, malware_only, auto_kill))
-                time.sleep(1.5)
-        except KeyboardInterrupt:
-            console.print("\n[dim]Radar offline. Stay safe.[/dim]")
-            sys.exit(0)
+    try:
+        console.print("[cyan]Initializing Kharma Radar...[/cyan]")
+        console.print("[dim]Checking Intel Databases...[/dim]")
+        scanner = NetworkScanner()
+        geoip = GeoIPResolver()
+        intel = ThreatIntelligence()
+        logger = TrafficLogger() if log_enabled else None
+        
+        if log_enabled:
+            console.print("[dim]Traffic Logging ENABLED. Writing to history database.[/dim]")
+        if proc_filter:
+            console.print(f"[dim]Filtering for process: '{proc_filter}'[/dim]")
+        if malware_only:
+            console.print("[bold red]MALWARE-ONLY MODE ENABLED. Hide all safe traffic.[/bold red]")
+        if auto_kill:
+            console.print("[bold white on red blink] 🛡️  AUTO-KILL IPS ENABLED. Malware connections will be terminated instantly. [/bold white on red blink]")
+        
+        with Live(create_radar_table(scanner, geoip, intel, logger, proc_filter, malware_only, auto_kill), console=console, refresh_per_second=2) as live:
+            try:
+                while True:
+                    live.update(create_radar_table(scanner, geoip, intel, logger, proc_filter, malware_only, auto_kill))
+                    time.sleep(1.5)
+            except KeyboardInterrupt:
+                console.print("\n[dim]Radar offline. Stay safe.[/dim]")
+                sys.exit(0)
+    except Exception as e:
+        import traceback
+        with open(os.path.expanduser("~/.kharma/crash.log"), "w") as f:
+            f.write(traceback.format_exc())
+        console.print(f"[bold red]CRASHED: {e}[/bold red]")
+        time.sleep(10) # Keep window open to read error
+        sys.exit(1)
 
 @cli.command()
 @click.argument('pid', type=int)
