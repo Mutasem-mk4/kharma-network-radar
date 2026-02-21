@@ -40,7 +40,7 @@ click.rich_click.COMMAND_GROUPS = {
     "kharma": [
         {
             "name": "Live Intelligence",
-            "commands": ["run", "history", "sniff"],
+            "commands": ["run", "history", "sniff", "web"],
         },
         {
             "name": "Active Defense",
@@ -60,6 +60,7 @@ click.rich_click.COMMAND_GROUPS = {
 |---|---|
 | `kharma run` | Start the Live Network Radar Dashboard. |
 | `kharma run --protect` | Start Dashboard + [bold red]Auto-Kill Malware[/bold red]. |
+| `kharma web` | Launch the Dark Web UI Dashboard (Localhost). |
 | `kharma daemon start` | Deploy the silent Background Monitor. |
 | `kharma history` | View historical connections (Time Machine). |
 | `kharma config vt <API_KEY>` | Register VirusTotal EDR Key. |
@@ -331,6 +332,57 @@ def config_vt(api_key):
         
     console.print(f"[bold green]VirusTotal API Key registered successfully![/bold green]")
     console.print("[cyan]Kharma will now natively hash all external socket connections and verify them against 70+ AV engines in the cloud.[/cyan]")
+
+@cli.command('web', epilog="""
+    [bold underline]Description:[/bold underline]
+    Spawns a local Flask backend to collect Network Intelligence and launches your 
+    default browser to display the interactive Kharma Dashboard UI.
+    
+    [bold underline]Examples:[/bold underline]
+    [cyan]kharma web[/cyan]                        Launch the dashboard on port 8085.
+    [cyan]kharma web --port 9090[/cyan]            Launch the dashboard on a custom port.
+""")
+@click.option('--port', default=8085, help="Port to run the internal web server on.")
+def web_cmd(port):
+    """Launch the Web UI Dashboard."""
+    import threading
+    import webbrowser
+    
+    try:
+        from kharma.server import KharmaWebServer
+    except ImportError:
+        from server import KharmaWebServer
+        
+    # Ensure run as admin/root for full visibility
+    if platform.system() == "Windows":
+        import ctypes
+        if ctypes.windll.shell32.IsUserAnAdmin() == 0:
+            console.print("[yellow]Warning: Running Kharma Web without Administrator privileges. Some processes will be hidden.[/yellow]")
+    else:
+        if os.geteuid() != 0:
+            console.print("[yellow]Warning: Running Kharma Web without Root privileges. Some connections will be hidden.[/yellow]")
+            
+    server = KharmaWebServer(port=port)
+    
+    console.print(f"[bold cyan]Initializing Kharma Web Dashboard...[/bold cyan]")
+    console.print(f"[dim]Spawning background data scanner loop...[/dim]")
+    
+    # Delay browser opening slightly so server can bind the port
+    def open_browser():
+        time.sleep(1.5)
+        url = f"http://127.0.0.1:{port}"
+        console.print(f"[bold green]Dashboard launched at: {url}[/bold green]")
+        console.print(f"[dim](Press CTRL+C in this terminal to shutdown the radar)[/dim]")
+        webbrowser.open(url)
+        
+    threading.Thread(target=open_browser, daemon=True).start()
+    
+    try:
+        server.start()
+    except KeyboardInterrupt:
+        console.print("\n[dim]Web Radar offline. Stay safe.[/dim]")
+    except Exception as e:
+        console.print(f"[red]Failed to start internal web server: {e}[/red]")
 
 if __name__ == '__main__':
     cli()
