@@ -4,68 +4,242 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kharma Dashboard - Live Radar</title>
-    <!-- Tailwind CSS for Dark Cybersecurity Aesthetics -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Kharma_Radar - Over-Watch Dashboard</title>
+
+    <!-- Lucide Icons -->
     <script src="https://cdn.jsdelivr.net/npm/lucide@latest/lucide.js"></script>
 
     <!-- Leaflet Configuration -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
 
+        :root {
+            --bg-deep: #020617;
+            --bg-panel: rgba(15, 23, 42, 0.8);
+            --border: rgba(51, 65, 85, 0.4);
+            --accent: #10b981;
+            --accent-glow: rgba(16, 185, 129, 0.3);
+            --text-main: #e2e8f0;
+            --text-dim: #94a3b8;
+            --danger: #ef4444;
+            --danger-glow: rgba(239, 68, 68, 0.4);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
         body {
             font-family: 'JetBrains Mono', monospace;
-            background-color: #020617;
-            /* Slate 950 */
-            color: #e2e8f0;
-            /* Slate 200 */
+            background-color: var(--bg-deep);
+            color: var(--text-main);
+            min-height: screen;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+            padding: 1.5rem;
+            gap: 1.5rem;
         }
 
+        /* Glassmorphism Classes */
         .glass-panel {
-            background: rgba(15, 23, 42, 0.7);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(51, 65, 85, 0.5);
-            border-radius: 0.5rem;
+            background: var(--bg-panel);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border);
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
         }
 
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.25rem 2rem;
         }
 
-        ::-webkit-scrollbar-track {
+        .brand h1 {
+            font-size: 1.5rem;
+            letter-spacing: 0.2em;
+            font-weight: 700;
+        }
+
+        .brand h1 span {
+            color: var(--accent);
+        }
+
+        .stats-grid {
+            display: flex;
+            gap: 2.5rem;
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .stat-label {
+            font-size: 0.65rem;
+            letter-spacing: 0.1em;
+            color: var(--text-dim);
+            text-transform: uppercase;
+        }
+
+        .stat-value {
+            font-weight: 700;
+            font-size: 1rem;
+        }
+
+        main {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+        }
+
+        /* Radar Table Section */
+        .dashboard-container {
+            display: flex;
+            flex-direction: column;
+            min-height: 500px;
+        }
+
+        .panel-header {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(30, 41, 59, 0.3);
+            border-top-left-radius: 0.75rem;
+            border-top-right-radius: 0.75rem;
+        }
+
+        .panel-title {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 0.8rem;
+            letter-spacing: 0.1em;
+            color: var(--text-main);
+            font-weight: 700;
+        }
+
+        .search-box {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border);
+            border-radius: 0.375rem;
+            padding: 0.5rem 1rem;
+            color: white;
+            font-family: inherit;
+            font-size: 0.8rem;
+            width: 250px;
+        }
+
+        .search-box:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .table-scroll {
+            flex: 1;
+            overflow: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 0.85rem;
+        }
+
+        thead {
+            position: sticky;
+            top: 0;
             background: #0f172a;
+            z-index: 10;
         }
 
-        ::-webkit-scrollbar-thumb {
-            background: #334155;
-            border-radius: 4px;
+        th {
+            padding: 1rem 1.5rem;
+            color: var(--text-dim);
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 0.7rem;
+            letter-spacing: 0.05em;
         }
 
-        ::-webkit-scrollbar-thumb:hover {
-            background: #475569;
+        td {
+            padding: 0.85rem 1.5rem;
+            border-bottom: 1px solid rgba(51, 65, 85, 0.2);
         }
 
-        .blink {
-            animation: blink-animation 1s steps(5, start) infinite;
-            -webkit-animation: blink-animation 1s steps(5, start) infinite;
+        .row-hover:hover {
+            background: rgba(16, 185, 129, 0.05);
         }
 
-        @keyframes blink-animation {
-            to {
-                visibility: hidden;
-            }
+        .threat-row {
+            background: rgba(239, 68, 68, 0.05);
+            border-left: 3px solid var(--danger);
         }
 
-        /* Map Styling Overrides for Dark Mode */
+        .threat-row:hover {
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        /* Marker & Badges */
+        .status-badge {
+            padding: 0.25rem 0.65rem;
+            border-radius: 0.25rem;
+            font-size: 0.7rem;
+            font-weight: 700;
+            background: #1e293b;
+            border: 1px solid var(--border);
+        }
+
+        .status-malware {
+            color: var(--danger);
+            border-color: rgba(239, 68, 68, 0.3);
+            background: rgba(239, 68, 68, 0.1);
+            animation: pulse-red 2s infinite;
+        }
+
+        .kill-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 0.375rem;
+            padding: 0.4rem;
+            cursor: pointer;
+            color: var(--text-dim);
+            transition: all 0.2s;
+        }
+
+        .kill-btn:hover {
+            color: var(--danger);
+            border-color: var(--danger);
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        /* Map Section */
+        .map-section {
+            height: 400px;
+            overflow: hidden;
+        }
+
+        #radar-map {
+            width: 100%;
+            height: 100%;
+            background: var(--bg-deep);
+        }
+
+        /* Leaflet Dark Theme */
         .leaflet-container {
-            background-color: #020617;
+            background: var(--bg-deep) !important;
         }
 
         .leaflet-layer,
@@ -74,280 +248,248 @@
         .leaflet-control-attribution {
             filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
         }
+
+        /* Animations */
+        @keyframes pulse-red {
+            0% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+            }
+
+            70% {
+                box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+            }
+        }
+
+        .blink {
+            animation: blinker 1.5s linear infinite;
+        }
+
+        @keyframes blinker {
+            50% {
+                opacity: 0.1;
+            }
+        }
+
+        footer {
+            text-align: center;
+            font-size: 0.65rem;
+            color: var(--text-dim);
+            padding: 1rem;
+        }
+
+        @media (max-width: 1024px) {
+            .stats-grid {
+                display: none;
+            }
+        }
     </style>
 </head>
 
-<body class="min-h-screen p-4 flex flex-col gap-4">
+<body>
 
-    <!-- Header / Nav -->
-    <header class="glass-panel p-4 flex justify-between items-center">
-        <div class="flex items-center gap-3">
-            <i data-lucide="radar" class="text-emerald-500 w-8 h-8"></i>
-            <div>
-                <h1 class="text-xl font-bold text-white tracking-widest">KHARMA<span
-                        class="text-emerald-500">_RADAR</span></h1>
-                <p class="text-xs text-slate-400">Live Over-Watch Network Monitor</p>
-            </div>
+    <header class="glass-panel">
+        <div class="brand">
+            <h1 class="flex items-center gap-3">
+                KHARMA<span>_RADAR</span>
+            </h1>
+            <div style="font-size: 0.6rem; color: var(--text-dim); margin-top: 2px;">V5.1.2 ENTERPRISE ENDPOINT
+                PROTECTION</div>
         </div>
 
-        <div class="flex gap-6">
-            <div class="flex flex-col items-center">
-                <span class="text-xs tracking-widest text-slate-400">STATUS</span>
-                <span class="text-emerald-500 font-bold flex items-center gap-2">
-                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+        <div class="stats-grid">
+            <div class="stat-item">
+                <span class="stat-label">System Status</span>
+                <span class="stat-value" style="color: var(--accent); display: flex; align-items: center; gap: 8px;">
+                    <div
+                        style="width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 10px var(--accent);">
+                    </div>
                     ONLINE
                 </span>
             </div>
-            <div class="flex flex-col items-center">
-                <span class="text-xs tracking-widest text-slate-400">CONNECTIONS</span>
-                <span id="conn-count" class="text-white font-bold">0</span>
+            <div class="stat-item">
+                <span class="stat-label">Active Sockets</span>
+                <span id="conn-count" class="stat-value">0</span>
             </div>
-            <div class="flex flex-col items-center">
-                <span class="text-xs tracking-widest text-slate-400">VT ENGINE</span>
-                <span id="vt-status" class="text-slate-500 font-bold">-</span>
+            <div class="stat-item">
+                <span class="stat-label">VT Engine</span>
+                <span id="vt-status" class="stat-value" style="color: var(--text-dim);">INIT...</span>
             </div>
         </div>
     </header>
 
-    <!-- Main Grid -->
-    <main class="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4 overflow-hidden">
-
-        <!-- Radar Table Panel (Spans 2 columns) -->
-        <section class="glass-panel lg:col-span-2 flex flex-col overflow-hidden h-full min-h-[500px]">
-            <div class="p-4 border-b border-slate-700/50 flex justify-between items-center bg-slate-800/20">
-                <h2 class="text-sm font-bold tracking-widest text-slate-300 flex items-center gap-2">
-                    <i data-lucide="activity" class="w-4 h-4 text-emerald-500"></i>
-                    ACTIVE CONNECTIONS
-                </h2>
-
-                <div class="flex gap-2">
-                    <input type="text" id="filter-input" placeholder="Filter process..."
-                        class="bg-slate-900 border border-slate-700 rounded px-3 py-1 text-sm focus:outline-none focus:border-emerald-500 transition-colors placeholder:text-slate-600">
+    <main>
+        <!-- Table Area -->
+        <section class="glass-panel dashboard-container">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <i data-lucide="shield-check" style="color: var(--accent); width: 1.25rem;"></i>
+                    LIVE PROCESS RADAR
                 </div>
+                <input type="text" id="filter-input" placeholder="Search processes, IPs, or locations..."
+                    class="search-box">
             </div>
 
-            <div class="flex-1 overflow-auto">
-                <table class="w-full text-left text-sm border-collapse">
-                    <thead class="bg-slate-900/50 text-slate-400 sticky top-0 z-10 backdrop-blur-md">
+            <div class="table-scroll">
+                <table>
+                    <thead>
                         <tr>
-                            <th class="px-4 py-3 font-medium whitespace-nowrap">Process</th>
-                            <th class="px-4 py-3 font-medium whitespace-nowrap">PID</th>
-                            <th class="px-4 py-3 font-medium whitespace-nowrap">Remote Target</th>
-                            <th class="px-4 py-3 font-medium whitespace-nowrap">Location</th>
-                            <th class="px-4 py-3 font-medium whitespace-nowrap text-center">VT</th>
-                            <th class="px-4 py-3 font-medium whitespace-nowrap">Status</th>
-                            <th class="px-4 py-3 font-medium whitespace-nowrap text-right">Action</th>
+                            <th>Process</th>
+                            <th>PID</th>
+                            <th>Remote Target</th>
+                            <th>Geo-Location</th>
+                            <th style="text-align: center;">VT Scan</th>
+                            <th>Security Status</th>
+                            <th style="text-align: right;">Action</th>
                         </tr>
                     </thead>
-                    <tbody id="radar-body" class="divide-y divide-slate-800/50">
-                        <!-- Rows injected via JS -->
+                    <tbody id="radar-body">
+                        <!-- Polled Data -->
                     </tbody>
                 </table>
             </div>
         </section>
 
-        <!-- World Map Panel -->
-        <section class="glass-panel flex flex-col overflow-hidden h-[400px] lg:h-full lg:col-span-1">
-            <div class="p-4 border-b border-slate-700/50 bg-slate-800/20">
-                <h2 class="text-sm font-bold tracking-widest text-slate-300 flex items-center gap-2">
-                    <i data-lucide="globe" class="w-4 h-4 text-emerald-500"></i>
-                    GLOBAL INTEL MAP
-                </h2>
+        <!-- Map Area -->
+        <section class="glass-panel map-section">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <i data-lucide="globe" style="color: var(--accent); width: 1.25rem;"></i>
+                    GLOBAL THREAT TELEMETRY
+                </div>
             </div>
-            <div id="radar-map" class="flex-1 w-full bg-[#020617] relative"></div>
+            <div id="radar-map"></div>
         </section>
-
     </main>
 
-    <footer class="text-center text-xs text-slate-600 py-2">
-        Kharma Radar v4.0 &copy; 2026. Built with Flask, WebSockets, and pure malice.
+    <footer>
+        KHARMA RADAR v5.1.2 &copy; 2026 INTERNAL ENDPOINT MONITOR. ALL SENSORS ACTIVE.
     </footer>
 
-    <!-- Templates & JS -->
     <script>
-        // Initialize Lucide Icons
+        // Init Icons
         lucide.createIcons();
 
         const radarBody = document.getElementById('radar-body');
-        const connCount = document.getElementById('conn-count');
+        const connCountElement = document.getElementById('conn-count');
         const filterInput = document.getElementById('filter-input');
-        const vtStatus = document.getElementById('vt-status');
+        const vtStatusElement = document.getElementById('vt-status');
 
         let allConnections = [];
         let map;
         let mapMarkers = [];
 
-        // Initialize Map
+        // Map Setup
         function initMap() {
-            map = L.map('radar-map').setView([20.0, 0.0], 2);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            }).addTo(map);
+            map = L.map('radar-map', {
+                zoomControl: false,
+                attributionControl: false
+            }).setView([20, 0], 2);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
         }
 
-        // Fetch Live Data
-        async function fetchRadarData() {
+        // Fetch API
+        async function updateRadar() {
             try {
                 const response = await fetch('/api/radar');
-                if (!response.ok) throw new Error('Network response was not ok');
-
                 const json = await response.json();
                 if (json.status === 'success') {
                     allConnections = json.data;
-                    renderTable();
+                    renderUI();
                 }
-            } catch (error) {
-                console.error("Error fetching radar data:", error);
+            } catch (e) {
+                console.error("API Leak Error:", e);
             }
         }
 
-        // Render Table Rows
-        function renderTable() {
-            const filterTerm = filterInput.value.toLowerCase();
-            let html = '';
+        function renderUI() {
+            const filter = filterInput.value.toLowerCase();
+            let html = "";
+            let counter = 0;
+            let vtActive = false;
 
-            let displayCount = 0;
-            let isVtActive = false;
+            // Clear Markers
+            mapMarkers.forEach(m => map.removeLayer(m));
+            mapMarkers = [];
 
             allConnections.forEach(conn => {
-                // Apply Filter
-                if (filterTerm && !conn.process_name.toLowerCase().includes(filterTerm) &&
-                    !conn.remote_address.includes(filterTerm) && !conn.location.toLowerCase().includes(filterTerm)) {
-                    return;
-                }
+                const searchStr = `${conn.process_name} ${conn.remote_address} ${conn.location}`.toLowerCase();
+                if (filter && !searchStr.includes(filter)) return;
 
-                displayCount++;
+                counter++;
+                const isThreat = conn.is_malware;
+                const rowClass = isThreat ? "threat-row" : "row-hover";
 
-                // Styling logic based on Threat Intel & VT
-                let rowStyle = "hover:bg-slate-800/30 transition-colors";
-                let processClass = "text-emerald-400 font-bold";
-                let statusBadge = `<span class="px-2 py-1 rounded bg-slate-800 text-slate-300 border border-slate-700">${conn.status}</span>`;
-                let vtScoreHtml = `<span class="text-slate-600">-</span>`;
-
-                if (conn.vt_total > -1) {
-                    isVtActive = true;
+                let vtHtml = '<span style="color: var(--text-dim);">-</span>';
+                if (conn.vt_total > 0) {
+                    vtActive = true;
                     if (conn.vt_malicious > 0) {
-                        vtScoreHtml = `<span class="text-red-400 font-bold blink">${conn.vt_malicious}/${conn.vt_total}</span>`;
+                        vtHtml = `<span style="color: var(--danger); font-weight: bold;" class="blink">${conn.vt_malicious}/${conn.vt_total}</span>`;
                     } else {
-                        vtScoreHtml = `<span class="text-emerald-400">0/${conn.vt_total}</span>`;
+                        vtHtml = `<span style="color: var(--accent);">${conn.vt_total} Checks Path</span>`;
                     }
-                } else if (conn.vt_total === -1 && conn.exe === '') {
-                    vtScoreHtml = `<span class="text-slate-600">Denied</span>`;
                 }
 
-                if (conn.is_malware) {
-                    rowStyle = "bg-red-950/20 hover:bg-red-950/40 border-l-[3px] border-red-500 transition-colors";
-                    processClass = "text-red-500 font-bold blink";
-                    statusBadge = `<span class="px-2 py-1 rounded bg-red-900/50 text-red-400 border border-red-700/50 blink shadow-[0_0_10px_rgba(239,68,68,0.5)]">BREACHED</span>`;
-                } else if (conn.status === 'AUTO-KILLED') {
-                    rowStyle = "opacity-50 line-through bg-slate-900";
-                    statusBadge = `<span class="px-2 py-1 rounded bg-slate-800 text-slate-400 border border-slate-700">AUTO-KILLED</span>`;
-                }
+                const statusLabel = isThreat ? "THREAT DETECTED" : conn.status;
+                const statusClass = isThreat ? "status-malware" : "";
 
                 html += `
-                    <tr class="${rowStyle}">
-                        <td class="px-4 py-3 ${processClass}">${conn.process_name}</td>
-                        <td class="px-4 py-3 text-slate-400">${conn.pid}</td>
-                        <td class="px-4 py-3 font-mono ${conn.is_malware ? 'text-red-400' : 'text-slate-300'}">${conn.remote_address}</td>
-                        <td class="px-4 py-3">
-                            <div class="flex items-center gap-2 text-xs">
-                                <span class="text-slate-300 truncate max-w-[150px]" title="${conn.location}">${conn.location}</span>
-                            </div>
-                        </td>
-                        <td class="px-4 py-3 text-center bg-black/20">${vtScoreHtml}</td>
-                        <td class="px-4 py-3">${statusBadge}</td>
-                        <td class="px-4 py-3 text-right">
-                            <button onclick="killProcess(${conn.pid})" 
-                                    class="p-1.5 rounded hover:bg-red-500/20 text-slate-500 hover:text-red-400 transition-colors focus:outline-none"
-                                    title="Kill PID ${conn.pid}">
-                                <i data-lucide="skull" class="w-4 h-4"></i>
+                    <tr class="${rowClass}">
+                        <td style="font-weight: 700; color: ${isThreat ? 'var(--danger)' : 'var(--accent)'}">${conn.process_name}</td>
+                        <td style="color: var(--text-dim); font-size: 0.75rem;">${conn.pid}</td>
+                        <td style="font-family: monospace;">${conn.remote_address}</td>
+                        <td style="color: var(--text-dim); font-size: 0.75rem;">${conn.location}</td>
+                        <td style="text-align: center;">${vtHtml}</td>
+                        <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
+                        <td style="text-align: right;">
+                            <button class="kill-btn" onclick="killPID(${conn.pid})">
+                                <i data-lucide="zap" style="width: 14px; height: 14px;"></i>
                             </button>
                         </td>
                     </tr>
                 `;
-            });
 
-            radarBody.innerHTML = html;
-            connCount.innerText = displayCount;
-
-            // Re-bind icons for dynamic content
-            lucide.createIcons();
-
-            updateMapMarkers();
-
-            // Update VT Banner
-            if (isVtActive) {
-                vtStatus.innerText = "ONLINE";
-                vtStatus.className = "text-emerald-500 font-bold";
-            } else {
-                vtStatus.innerText = "OFFLINE";
-                vtStatus.className = "text-yellow-500 font-bold";
-            }
-        }
-
-        function updateMapMarkers() {
-            // Clear existing markers
-            mapMarkers.forEach(marker => map.removeLayer(marker));
-            mapMarkers = [];
-
-            const filterTerm = filterInput.value.toLowerCase();
-
-            // Define custom marker styling
-            const normalIcon = L.divIcon({
-                className: 'custom-icon',
-                html: '<div style="background-color: #10b981; width: 12px; height: 12px; border-radius: 50%; border: 2px solid #020617; box-shadow: 0 0 10px rgba(16,185,129,0.8);"></div>',
-                iconSize: [12, 12]
-            });
-            const threatIcon = L.divIcon({
-                className: 'custom-icon blink',
-                html: '<div style="background-color: #ef4444; width: 16px; height: 16px; border-radius: 50%; border: 2px solid #020617; box-shadow: 0 0 15px rgba(239,68,68,1);"></div>',
-                iconSize: [16, 16]
-            });
-
-            allConnections.forEach(conn => {
-                if (filterTerm && !conn.process_name.toLowerCase().includes(filterTerm) &&
-                    !conn.remote_address.includes(filterTerm) && !conn.location.toLowerCase().includes(filterTerm)) {
-                    return;
-                }
-
+                // Add to Map
                 if (conn.lat && conn.lon) {
-                    const icon = conn.is_malware ? threatIcon : normalIcon;
-                    const marker = L.marker([conn.lat, conn.lon], { icon: icon })
-                        .bindPopup(`<b>${conn.process_name}</b><br>${conn.remote_address}<br>${conn.location}`)
-                        .addTo(map);
+                    const color = isThreat ? '#ef4444' : '#10b981';
+                    const marker = L.circleMarker([conn.lat, conn.lon], {
+                        radius: isThreat ? 8 : 5,
+                        fillColor: color,
+                        color: "#000",
+                        weight: 1,
+                        opacity: 1,
+                        fillOpacity: 0.8
+                    }).addTo(map);
+
+                    if (isThreat) marker.bindPopup(`<b style="color: red;">MALWARE: ${conn.process_name}</b>`);
                     mapMarkers.push(marker);
                 }
             });
+
+            radarBody.innerHTML = html || '<tr><td colspan="7" style="text-align:center; padding: 3rem; color: var(--text-dim);">No active external connections detected. Monitoring sensors idle...</td></tr>';
+            connCountElement.innerText = counter;
+            vtStatusElement.innerText = vtActive ? "LINKED" : "STANDBY";
+            vtStatusElement.style.color = vtActive ? "var(--accent)" : "var(--text-dim)";
+
+            lucide.createIcons();
         }
 
-        // Active Defense API
-        async function killProcess(pid) {
-            if (!confirm(`Engage Active Defense?\n\nTerminate process PID ${pid} permanently?`)) return;
-
-            try {
-                const response = await fetch(`/api/kill/${pid}`, { method: 'DELETE' });
-                const json = await response.json();
-
-                if (json.status === 'success') {
-                    alert(`✅ ${json.message}`);
-                    fetchRadarData(); // Force refresh
-                } else {
-                    alert(`❌ Failed: ${json.message}`);
-                }
-            } catch (error) {
-                alert(`❌ API Error: ${error}`);
-            }
+        async function killPID(pid) {
+            if (!confirm("COMMAND CONFIRMATION: Terminate and isolate process " + pid + "?")) return;
+            const res = await fetch(`/api/kill/${pid}`, { method: 'DELETE' });
+            const data = await res.json();
+            alert(data.message);
+            updateRadar();
         }
 
-        // Event Listeners
-        filterInput.addEventListener('input', renderTable);
-
-        // Core Loop: Poll API every 2 seconds
-        setInterval(fetchRadarData, 2000);
-
-        // Initial Fetch & Map Init
+        filterInput.addEventListener('input', renderUI);
         initMap();
-        fetchRadarData();
+        updateRadar();
+        setInterval(updateRadar, 2000);
     </script>
 </body>
 
