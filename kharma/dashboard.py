@@ -5,7 +5,7 @@ from rich.text import Text
 from rich import box
 import psutil
 
-def create_radar_table(scanner, geoip_resolver, intel, logger=None, proc_filter=None, malware_only=False, auto_kill=False):
+def create_radar_table(scanner, geoip_resolver, intel, vt_engine=None, logger=None, proc_filter=None, malware_only=False, auto_kill=False):
     """
     Creates the main Rich table displaying the live network connections.
     """
@@ -21,30 +21,29 @@ def create_radar_table(scanner, geoip_resolver, intel, logger=None, proc_filter=
     table.add_column("Local Port", style="green", width=12)
     table.add_column("Remote IP:Port", width=25) # Removed yellow style, will color dynamically
     table.add_column("Location", style="blue")
+    table.add_column("VT Score", style="magenta", width=12, justify="center")
     table.add_column("Status", style="bold")
 
     # Fetch connections and process names
     scanner.scan()
-    connections = scanner.connections
+    connections = scanner.get_active_connections()
     
     # Track unique processes for the header summary
     unique_pids = set()
     active_count = 0
 
     for conn in connections:
-        if conn.status == 'ESTABLISHED':
-            # Skip loopback for cleaner view, unless it's the only thing happening
-            if conn.raddr and conn.raddr.ip not in ('127.0.0.1', '::1', '0.0.0.0'):
-                p_name = scanner.process_names.get(conn.pid, "Unknown")
+        # Since get_active_connections returns a list of dictionaries filtered by ESTABLISHED and External IPs
+        p_name = conn['name']
                 
                 # Apply Process Filter
                 if proc_filter and proc_filter.lower() not in p_name.lower():
                     continue
 
                 active_count += 1
-                pid_str = str(conn.pid) if conn.pid else "-"
-                if conn.pid:
-                    unique_pids.add(conn.pid)
+                pid_str = str(conn['pid']) if conn['pid'] else "-"
+                if conn['pid']:
+                    unique_pids.add(conn['pid'])
                     
                 # Highlight potentially suspicious names (basic example)
                 if p_name.lower() in ['nc', 'ncat', 'python', 'python3', 'bash', 'sh']:
@@ -52,13 +51,13 @@ def create_radar_table(scanner, geoip_resolver, intel, logger=None, proc_filter=
                 elif p_name == "Unknown":
                     p_name = f"[dim]{p_name}[/dim]"
                 
-                local_port = str(conn.laddr.port) if conn.laddr else "-"
+                local_port = str(conn['local_port']) if conn['local_port'] else "-"
                 
                 # Check Threat Intelligence
                 is_malware = False
                 remote = "-"
-                ip = conn.raddr.ip
-                port = conn.raddr.port
+                ip = conn['remote_ip']
+                port = conn['remote_port']
                 is_malware = intel.check_ip(ip)
                 
                 # Apply Malware-Only Filter
@@ -77,25 +76,44 @@ def create_radar_table(scanner, geoip_resolver, intel, logger=None, proc_filter=
                 if is_malware:
                     location = f"[bold red blink]{location} [MALWARE][/bold red blink]"
                 
+                # VirusTotal Engine Hash Analysis
+                vt_score_display = "[dim]-[/dim]"
+                vt_is_malicious = False
+                
+                if vt_engine and 'exe' in conn and conn['exe']:
+                    file_hash = vt_engine.get_file_hash(conn['exe'])
+                    malicious, total = vt_engine.check_hash(file_hash)
+                    
+                    if malicious is not None and total is not None:
+                        if malicious > 0:
+                            vt_score_display = f"[bold white on red blink]{malicious}/{total}[/bold white on red blink]"
+                            vt_is_malicious = True
+                            is_malware = True # Upgrade overall status to malware
+                            p_name = f"[bold red blink]🚨 {p_name} 🚨[/bold red blink]"
+                        else:
+                            vt_score_display = f"[green]0/{total}[/green]"
+                elif vt_engine and 'exe' in conn and not conn['exe']:
+                     vt_score_display = "[dim]Denied[/dim]"
+                
                 # Colorize Status
-                status = f"[green]{conn.status}[/green]"
+                status = f"[green]{conn['status']}[/green]"
                 if is_malware:
                     status = f"[bold red blink]BREACHED[/bold red blink]"
-                    if auto_kill and conn.pid:
+                    if auto_kill and conn['pid']:
                         try:
                             # Active Defense: Auto-Kill
-                            psutil.Process(conn.pid).terminate()
+                            psutil.Process(conn['pid']).terminate()
                             status = f"[bold white on red blink]AUTO-KILLED[/bold white on red blink]"
                             p_name = f"[strike]{p_name}[/strike]"
                         except (psutil.NoSuchProcess, psutil.AccessDenied):
                             status = f"[bold red blink]KILL FAILED[/bold red blink]"
                     
                 # Traffic Logging (Time Machine)
-                if logger and conn.raddr:
+                if logger and ip:
                     # Strip rich tags for logging
                     clean_pname = p_name.replace("[bold red blink]🚨 ", "").replace(" 🚨[/bold red blink]", "")
                     clean_loc = location.replace("[bold red blink]", "").replace(" [MALWARE][/bold red blink]", "")
-                    logger.log_connection(clean_pname, conn.pid, ip, port, clean_loc, is_malware)
+                    logger.log_connection(clean_pname, conn['pid'], ip, port, clean_loc, is_malware)
                 
                 table.add_row(
                     p_name,
@@ -103,6 +121,7 @@ def create_radar_table(scanner, geoip_resolver, intel, logger=None, proc_filter=
                     local_port,
                     remote,
                     location,
+                    vt_score_display,
                     status
                 )
     if active_count == 0:

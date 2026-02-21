@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="kharma-radar",
-    version="3.0.3",
+    version="4.0.0",
     author="Mutasem (@Mutasem-mk4)",
     author_email="example@example.com",
     description="The Over-Watch Network Monitor: An elite CLI tool mapping active connections to process IDs, geographical locations, and threat intelligence.",
@@ -23,11 +23,12 @@ setup(
     ],
     python_requires='>=3.8',
     install_requires=[
-        'click>=8.1.0',
-        'rich>=13.0.0',
-        'psutil>=5.9.0',
-        'requests>=2.28.0',
-        'maxminddb>=2.0.0'
+        'click',
+        'rich',
+        'psutil',
+        'requests',
+        'maxminddb',
+        'vt-py',
     ],
     entry_points={
         "console_scripts": [

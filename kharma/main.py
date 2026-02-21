@@ -14,6 +14,7 @@ try:
     from kharma.threat import ThreatIntelligence
     from kharma.logger import TrafficLogger
     from kharma.sniffer import DPISniffer
+    from kharma.vt_engine import VTEngine
 except ImportError:
     # Fallback for local execution or PyInstaller
     from scanner import NetworkScanner
@@ -22,6 +23,7 @@ except ImportError:
     from threat import ThreatIntelligence
     from logger import TrafficLogger
     from sniffer import DPISniffer
+    from vt_engine import VTEngine
 
 
 console = Console()
@@ -97,6 +99,7 @@ def run_radar(log_enabled=False, proc_filter=None, malware_only=False, auto_kill
         scanner = NetworkScanner()
         geoip = GeoIPResolver()
         intel = ThreatIntelligence()
+        vt_engine = VTEngine()
         logger = TrafficLogger() if log_enabled else None
         
         if log_enabled:
@@ -107,11 +110,15 @@ def run_radar(log_enabled=False, proc_filter=None, malware_only=False, auto_kill
             console.print("[bold red]MALWARE-ONLY MODE ENABLED. Hide all safe traffic.[/bold red]")
         if auto_kill:
             console.print("[bold white on red blink] 🛡️  AUTO-KILL IPS ENABLED. Malware connections will be terminated instantly. [/bold white on red blink]")
+        if vt_engine.api_key:
+            console.print("[bold green]🧬 VirusTotal Engine is ONLINE. Deep Process Hashing active.[/bold green]")
+        else:
+            console.print("[yellow]⚠️  VirusTotal Engine is offline. Run 'kharma config vt <API_KEY>' to enable deep EDR scanning.[/yellow]")
         
-        with Live(create_radar_table(scanner, geoip, intel, logger, proc_filter, malware_only, auto_kill), console=console, refresh_per_second=2) as live:
+        with Live(create_radar_table(scanner, geoip, intel, vt_engine, logger, proc_filter, malware_only, auto_kill), console=console, refresh_per_second=2) as live:
             try:
                 while True:
-                    live.update(create_radar_table(scanner, geoip, intel, logger, proc_filter, malware_only, auto_kill))
+                    live.update(create_radar_table(scanner, geoip, intel, vt_engine, logger, proc_filter, malware_only, auto_kill))
                     time.sleep(1.5)
             except KeyboardInterrupt:
                 console.print("\n[dim]Radar offline. Stay safe.[/dim]")
@@ -204,10 +211,48 @@ def daemon_config(bot_token, chat_id):
     """Configure Telegram Alerts."""
     import json
     config_path = os.path.expanduser("~/.kharma/daemon_config.json")
+    config = {}
+    if os.path.exists(config_path):
+        with open(config_path, "r") as f:
+            try:
+                config = json.load(f)
+            except:
+                pass
+    config["telegram_bot_token"] = bot_token
+    config["telegram_chat_id"] = chat_id
+    
     with open(config_path, "w") as f:
-        json.dump({"telegram_bot_token": bot_token, "telegram_chat_id": chat_id}, f)
+        json.dump(config, f)
     console.print(f"[green]Configuration saved to {config_path}[/green]")
     console.print("[cyan]Telegram alerts are now active for the daemon.[/cyan]")
+
+@cli.group()
+def config():
+    """Manage global tool configurations and API keys."""
+    pass
+
+@config.command('vt')
+@click.argument('api_key')
+def config_vt(api_key):
+    """Set the VirusTotal API Key for Host-based Deep Malware Scanning."""
+    import json
+    config_path = os.path.expanduser("~/.kharma/daemon_config.json")
+    os.makedirs(os.path.dirname(config_path), exist_ok=True)
+    
+    config_data = {}
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, "r") as f:
+                config_data = json.load(f)
+        except Exception:
+            pass
+            
+    config_data['vt_api_key'] = api_key
+    with open(config_path, "w") as f:
+        json.dump(config_data, f)
+        
+    console.print(f"[bold green]VirusTotal API Key registered successfully![/bold green]")
+    console.print("[cyan]Kharma will now natively hash all external socket connections and verify them against 70+ AV engines in the cloud.[/cyan]")
 
 if __name__ == '__main__':
     cli()

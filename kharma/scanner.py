@@ -14,11 +14,14 @@ class NetworkScanner:
     def _update_process_mapping(self):
         """Build a cache of PID to Process Name for faster lookup, handling access denied errors."""
         self.process_names.clear()
-        for p in psutil.process_iter(['pid', 'name']):
+        self.process_exe = {}
+        for p in psutil.process_iter(['pid', 'name', 'exe']):
             try:
                 self.process_names[p.info['pid']] = p.info['name']
+                self.process_exe[p.info['pid']] = p.info['exe']
             except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                 self.process_names[p.info['pid']] = "Unknown/Access Denied"
+                self.process_exe[p.info['pid']] = None
 
     def get_active_connections(self):
         """
@@ -31,10 +34,12 @@ class NetworkScanner:
                 # Skip localhost/loopback connections to focus on external traffic
                 if conn.raddr and conn.raddr.ip not in ('127.0.0.1', '::1', '0.0.0.0'):
                     p_name = self.process_names.get(conn.pid, str(conn.pid) if conn.pid else "System")
+                    p_exe = self.process_exe.get(conn.pid, None)
                     
                     active_conns.append({
                         'pid': conn.pid,
                         'name': p_name,
+                        'exe': p_exe,
                         'local_ip': conn.laddr.ip,
                         'local_port': conn.laddr.port,
                         'remote_ip': conn.raddr.ip,
