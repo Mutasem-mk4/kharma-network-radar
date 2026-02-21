@@ -7,11 +7,18 @@ import os
 import sys
 
 # Internal Modules
-from scanner import NetworkScanner
-from dashboard import create_radar_table
-from geoip import GeoIPResolver
-from threat import ThreatIntelligence
-from logger import TrafficLogger
+try:
+    from kharma.scanner import NetworkScanner
+    from kharma.dashboard import create_radar_table
+    from kharma.geoip import GeoIPResolver
+except ImportError:
+    # Fallback for local execution or PyInstaller
+    from scanner import NetworkScanner
+    from dashboard import create_radar_table
+    from geoip import GeoIPResolver
+    from threat import ThreatIntelligence
+    from logger import TrafficLogger
+    from sniffer import DPISniffer
 
 
 console = Console()
@@ -112,6 +119,14 @@ def kill(pid):
         console.print(f"[red]Error: Access denied. You may need higher privileges (Root/Admin) to kill PID {pid}.[/red]")
     except Exception as e:
         console.print(f"[red]Unexpected error terminating process: {e}[/red]")
+
+@cli.command('sniff')
+@click.argument('pid', type=int)
+@click.option('--count', default=100, help="Maximum number of packets to capture.")
+def sniff_cmd(pid, count):
+    """Deep Packet Inspection (DPI). Sniff live traffic from a specific PID."""
+    sniffer = DPISniffer(pid)
+    sniffer.start_sniffing(packet_count=count)
 
 if __name__ == '__main__':
     cli()
