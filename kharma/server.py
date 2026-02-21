@@ -63,9 +63,12 @@ class KharmaWebServer:
                     # 1. GeoIP Lookup
                     location = "[LOCAL]"
                     country_code = "LOCAL"
+                    lat, lon = None, None
                     if remote_ip and not remote_ip.startswith(('127.', '192.168.', '10.')):
                         lat_lon = self.geoip.resolve(remote_ip)
                         if lat_lon:
+                            lat = lat_lon[0]
+                            lon = lat_lon[1]
                             location = f"{lat_lon[2]}, {lat_lon[3]}"
                             country_code = lat_lon[3]
                         else:
@@ -102,6 +105,8 @@ class KharmaWebServer:
                         "remote_address": f"{remote_ip}:{conn.get('remote_port')}",
                         "location": location,
                         "country_code": country_code,
+                        "lat": lat,
+                        "lon": lon,
                         "status": status_text,
                         "is_malware": is_malware,
                         "vt_malicious": vt_malicious,
