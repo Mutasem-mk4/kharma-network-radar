@@ -11,6 +11,9 @@ try:
     from kharma.scanner import NetworkScanner
     from kharma.dashboard import create_radar_table
     from kharma.geoip import GeoIPResolver
+    from kharma.threat import ThreatIntelligence
+    from kharma.logger import TrafficLogger
+    from kharma.sniffer import DPISniffer
 except ImportError:
     # Fallback for local execution or PyInstaller
     from scanner import NetworkScanner
