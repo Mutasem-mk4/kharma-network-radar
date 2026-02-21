@@ -10,11 +10,13 @@ try:
     from kharma.geoip import GeoIPResolver
     from kharma.threat import ThreatIntelligence
     from kharma.vt_engine import VTEngine
+    from kharma.community import CommunityIntel
 except ImportError:
     from scanner import NetworkScanner
     from geoip import GeoIPResolver
     from threat import ThreatIntelligence
     from vt_engine import VTEngine
+    from community import CommunityIntel
 
 class KharmaWebServer:
     def __init__(self, host="127.0.0.1", port=8085):
@@ -40,6 +42,7 @@ class KharmaWebServer:
         self.geoip = GeoIPResolver()
         self.intel = ThreatIntelligence()
         self.vt_engine = VTEngine()
+        self.community = CommunityIntel()
 
     def _setup_routes(self):
         @self.app.route('/')
@@ -97,6 +100,12 @@ class KharmaWebServer:
                                     is_malware = True
                                     status_text = "BREACHED"
 
+                    # 4. Community Reputation
+                    is_community_flagged = self.community.is_flagged(remote_ip)
+                    community_detail = self.community.get_details(remote_ip) if is_community_flagged else None
+                    if is_community_flagged:
+                        status_text = "SUSPICIOUS"
+
                     # Assemble JSON Row
                     radar_data.append({
                         "process_name": conn.get('name', 'Unknown'),
@@ -104,12 +113,15 @@ class KharmaWebServer:
                         "exe": conn.get('exe', ''),
                         "local_address": f"{conn.get('local_ip')}:{conn.get('local_port')}",
                         "remote_address": f"{remote_ip}:{conn.get('remote_port')}",
+                        "remote_ip": remote_ip, # Send raw IP for reporting
                         "location": location,
                         "country_code": country_code,
                         "lat": lat,
                         "lon": lon,
                         "status": status_text,
                         "is_malware": is_malware,
+                        "is_community_flagged": is_community_flagged,
+                        "community_reports": community_detail['reports'] if is_community_flagged else 0,
                         "vt_malicious": vt_malicious,
                         "vt_total": vt_total
                     })
@@ -135,6 +147,25 @@ class KharmaWebServer:
                 return jsonify({"status": "error", "message": f"Access Denied. Run Kharma as Admin/Root to kill PID {pid}."}), 403
             except Exception as e:
                 return jsonify({"status": "error", "message": f"Failed to kill process: {e}"}), 500
+
+        @self.app.route('/api/report', methods=['POST'])
+        def report_to_community():
+            """API Endpoint to report a malicious IP to the decentralized Kharma community."""
+            try:
+                data = request.get_json()
+                remote_ip = data.get('ip')
+                reason = data.get('reason', 'Manual Flag')
+                
+                if not remote_ip:
+                    return jsonify({"status": "error", "message": "Missing IP address."}), 400
+                    
+                success = self.community.report_ip(remote_ip, reason)
+                if success:
+                    return jsonify({"status": "success", "message": f"IP {remote_ip} has been reported to the community."}), 200
+                else:
+                    return jsonify({"status": "error", "message": "Failed to report IP."}), 500
+            except Exception as e:
+                return jsonify({"status": "error", "message": str(e)}), 500
 
     def start(self):
         """Start the Flask internal server. This is a blocking call."""

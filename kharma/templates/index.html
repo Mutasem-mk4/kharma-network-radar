@@ -209,6 +209,12 @@
             animation: pulse-red 2s infinite;
         }
 
+        .status-community {
+            color: #fbbf24;
+            border-color: rgba(251, 191, 36, 0.3);
+            background: rgba(251, 191, 36, 0.1);
+        }
+
         .kill-btn {
             background: transparent;
             border: 1px solid var(--border);
@@ -318,6 +324,10 @@
                 <span class="stat-label">VT Engine</span>
                 <span id="vt-status" class="stat-value" style="color: var(--text-dim);">INIT...</span>
             </div>
+            <div class="stat-item">
+                <span class="stat-label">Community Score</span>
+                <span id="comm-status" class="stat-value" style="color: var(--accent);">0 FLAGS</span>
+            </div>
         </div>
     </header>
 
@@ -422,6 +432,7 @@
 
                 counter++;
                 const isThreat = conn.is_malware;
+                const isCommunity = conn.is_community_flagged;
                 const rowClass = isThreat ? "threat-row" : "row-hover";
 
                 let vtHtml = '<span style="color: var(--text-dim);">-</span>';
@@ -434,8 +445,13 @@
                     }
                 }
 
-                const statusLabel = isThreat ? "THREAT DETECTED" : conn.status;
-                const statusClass = isThreat ? "status-malware" : "";
+                let statusLabel = isThreat ? "THREAT DETECTED" : conn.status;
+                let statusClass = isThreat ? "status-malware" : "";
+
+                if (isCommunity && !isThreat) {
+                    statusLabel = `FLAGGED (${conn.community_reports})`;
+                    statusClass = "status-community";
+                }
 
                 html += `
                     <tr class="${rowClass}">
@@ -445,8 +461,11 @@
                         <td style="color: var(--text-dim); font-size: 0.75rem;">${conn.location}</td>
                         <td style="text-align: center;">${vtHtml}</td>
                         <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
-                        <td style="text-align: right;">
-                            <button class="kill-btn" onclick="killPID(${conn.pid})">
+                        <td style="text-align: right; display: flex; gap: 8px; justify-content: flex-end;">
+                            <button class="kill-btn" onclick="reportIP('${conn.remote_ip}')" title="Report to Community">
+                                <i data-lucide="flag" style="width: 14px; height: 14px; color: #fbbf24;"></i>
+                            </button>
+                            <button class="kill-btn" onclick="killPID(${conn.pid})" title="Active Defense">
                                 <i data-lucide="zap" style="width: 14px; height: 14px;"></i>
                             </button>
                         </td>
@@ -455,9 +474,11 @@
 
                 // Add to Map
                 if (conn.lat && conn.lon) {
-                    const color = isThreat ? '#ef4444' : '#10b981';
+                    let color = isThreat ? '#ef4444' : '#10b981';
+                    if (isCommunity && !isThreat) color = '#fbbf24'; // Warning Orange
+
                     const marker = L.circleMarker([conn.lat, conn.lon], {
-                        radius: isThreat ? 8 : 5,
+                        radius: isThreat ? 8 : (isCommunity ? 7 : 5),
                         fillColor: color,
                         color: "#000",
                         weight: 1,
@@ -466,6 +487,7 @@
                     }).addTo(map);
 
                     if (isThreat) marker.bindPopup(`<b style="color: red;">MALWARE: ${conn.process_name}</b>`);
+                    if (isCommunity) marker.bindPopup(`<b>COMMUNITY FLAG: ${conn.remote_ip}</b><br>Reports: ${conn.community_reports}`);
                     mapMarkers.push(marker);
                 }
             });
@@ -475,7 +497,29 @@
             vtStatusElement.innerText = vtActive ? "LINKED" : "STANDBY";
             vtStatusElement.style.color = vtActive ? "var(--accent)" : "var(--text-dim)";
 
+            // Update Community Flag count
+            const flaggedCount = allConnections.filter(c => c.is_community_flagged).length;
+            document.getElementById('comm-status').innerText = `${flaggedCount} FLAGS`;
+            document.getElementById('comm-status').style.color = flaggedCount > 0 ? '#fbbf24' : 'var(--accent)';
+
             lucide.createIcons();
+        }
+
+        async function reportIP(ip) {
+            if (!confirm(`CONFIRM COMMUNITY REPORT:\nDo you want to flag IP ${ip} as malicious?`)) return;
+
+            try {
+                const res = await fetch('/api/report', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ip: ip, reason: "Manual UI Flag" })
+                });
+                const data = await res.json();
+                alert(data.message);
+                updateRadar();
+            } catch (e) {
+                alert("Report failed.");
+            }
         }
 
         async function killPID(pid) {

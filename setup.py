@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="kharma-radar",
-    version="5.1.1",
+    version="6.0.0",
     author="Mutasem (@Mutasem-mk4)",
     author_email="example@example.com",
     description="The Over-Watch Network Monitor: An elite CLI tool mapping active connections to process IDs, geographical locations, and threat intelligence.",
