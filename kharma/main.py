@@ -1,4 +1,4 @@
-import click
+import rich_click as click
 from rich.console import Console
 from rich.live import Live
 import time
@@ -28,26 +28,65 @@ except ImportError:
 
 console = Console()
 
+click.rich_click.USE_RICH_MARKUP = True
+click.rich_click.SHOW_ARGUMENTS = True
+click.rich_click.GROUP_ARGUMENTS_OPTIONS = True
+click.rich_click.STYLE_ERRORS_SUGGESTION = "magenta italic"
+click.rich_click.ERRORS_SUGGESTION = "Try running '--help' for a list of available commands."
+click.rich_click.ERRORS_EPILOGUE = "To find out more, visit [link=https://github.com/mutasem-mk4]github.com/mutasem-mk4[/link]"
+
+# Customize the display of the main group commands
+click.rich_click.COMMAND_GROUPS = {
+    "kharma": [
+        {
+            "name": "Live Intelligence",
+            "commands": ["run", "history", "sniff"],
+        },
+        {
+            "name": "Active Defense",
+            "commands": ["kill"],
+        },
+        {
+            "name": "Service & Config",
+            "commands": ["daemon", "config"],
+        },
+    ]
+}
+
 @click.group(invoke_without_command=True)
 @click.pass_context
 def cli(ctx):
     """
-    kharma - The Over-Watch Network Monitor.
-    Reveals hidden connections and bad karma processes.
+    [bold cyan]Kharma - The Over-Watch Network Monitor[/bold cyan]
+    
+    Reveals hidden connections and bad karma processes on your system.
+    Built for active defense, forensics, and zero-latency geolocation.
     """
     if ctx.invoked_subcommand is None:
         run_radar()
 
-@cli.command('run')
+@cli.command('run', epilog="""
+    [bold underline]Examples:[/bold underline]
+    [cyan]kharma run[/cyan]                        Start the live radar UI.
+    [cyan]kharma run --log[/cyan]                  Start radar and record history.
+    [cyan]kharma run --filter chrome[/cyan]        Only show Chrome traffic.
+    [cyan]kharma run --malware-only[/cyan]       Hide safe traffic, focus on threats.
+    [cyan]kharma run --protect[/cyan]            [bold red]Auto-Kill[/bold red] mode (Instantly terminate threats).
+""")
 @click.option('--log', is_flag=True, help="Silently log new connections to a local history database.")
 @click.option('--filter', '-f', default=None, help="Only show processes that match this name (e.g. 'chrome').")
 @click.option('--malware-only', '-m', is_flag=True, help="Only display connections flagged as known malware/botnets.")
-@click.option('--protect', '-p', is_flag=True, help="Auto-Kill mode: Instantly terminate any process connecting to a malware IP.")
+@click.option('--protect', '-p', is_flag=True, help="[bold red]Auto-Kill mode:[/bold red] Instantly terminate any process connecting to a malware IP.")
 def run_cmd(log, filter, malware_only, protect):
-    """Start the Live Network Radar."""
+    """Start the Live Network Radar Dashboard."""
     run_radar(log_enabled=log, proc_filter=filter, malware_only=malware_only, auto_kill=protect)
 
-@cli.command('history')
+@cli.command('history', epilog="""
+    [bold underline]Examples:[/bold underline]
+    [cyan]kharma history[/cyan]                  Show the last 50 connections.
+    [cyan]kharma history --limit 200[/cyan]        Show the last 200 connections.
+    [cyan]kharma history --malware-only[/cyan]     [bold red]Forensics:[/bold red] Only show historical malware hits.
+""")
 @click.option('--limit', default=50, help="Number of past connections to show.")
 @click.option('--malware-only', is_flag=True, help="Only show historical connections flagged as Malware.")
 def history_cmd(limit, malware_only):
@@ -131,7 +170,13 @@ def run_radar(log_enabled=False, proc_filter=None, malware_only=False, auto_kill
         time.sleep(10) # Keep window open to read error
         sys.exit(1)
 
-@cli.command()
+@cli.command('kill', epilog="""
+    [bold underline]Usage:[/bold underline]
+    [cyan]kharma kill <PID>[/cyan]
+    
+    [bold underline]Examples:[/bold underline]
+    [cyan]kharma kill 8542[/cyan]                  Instantly terminate the process running on PID 8542.
+""")
 @click.argument('pid', type=int)
 def kill(pid):
     """Purge a process by its PID to balance system karma."""
@@ -150,7 +195,13 @@ def kill(pid):
     except Exception as e:
         console.print(f"[red]Unexpected error terminating process: {e}[/red]")
 
-@cli.command('sniff')
+@cli.command('sniff', epilog="""
+    [bold underline]Examples:[/bold underline]
+    [cyan]kharma sniff 1234[/cyan]                 Capture the next 100 packets from PID 1234.
+    [cyan]kharma sniff 1234 --count 500[/cyan]       Capture the next 500 packets from PID 1234.
+    
+    [dim italic]* Note: DPI sniffing requires Npcap (Windows) or Root (Linux/macOS).[/dim italic]
+""")
 @click.argument('pid', type=int)
 @click.option('--count', default=100, help="Maximum number of packets to capture.")
 def sniff_cmd(pid, count):
@@ -171,12 +222,20 @@ def daemon_run(protect):
     except Exception as e:
         pass # Die silently in background
 
-@cli.group()
+@cli.group('daemon', epilog="""
+    [bold underline]Description:[/bold underline]
+    Deploys a headless (invisible) Kharma instance that monitors the network 
+    autonomously and sends alerts via Desktop Toast Notifications and Telegram.
+""")
 def daemon():
     """Manage silent background monitoring and alerts."""
     pass
 
-@daemon.command('start')
+@daemon.command('start', epilog="""
+    [bold underline]Examples:[/bold underline]
+    [cyan]kharma daemon start[/cyan]               Start silent monitoring. 
+    [cyan]kharma daemon start --protect[/cyan]     Start silent monitoring + [bold red]Auto-Kill Malware[/bold red].
+""")
 @click.option('--protect', '-p', is_flag=True, help="Enable Auto-Kill while in background.")
 def daemon_start(protect):
     """Start the background daemon."""
@@ -226,12 +285,19 @@ def daemon_config(bot_token, chat_id):
     console.print(f"[green]Configuration saved to {config_path}[/green]")
     console.print("[cyan]Telegram alerts are now active for the daemon.[/cyan]")
 
-@cli.group()
+@cli.group('config', epilog="""
+    [bold underline]Description:[/bold underline]
+    Manage global configurations, API keys, and notification integrations 
+    for both the Live Radar and the Background Daemon.
+""")
 def config():
     """Manage global tool configurations and API keys."""
     pass
 
-@config.command('vt')
+@config.command('vt', epilog="""
+    [bold underline]Examples:[/bold underline]
+    [cyan]kharma config vt e3b0c44298fc...[/cyan]    Register your free VirusTotal API key.
+""")
 @click.argument('api_key')
 def config_vt(api_key):
     """Set the VirusTotal API Key for Host-based Deep Malware Scanning."""
