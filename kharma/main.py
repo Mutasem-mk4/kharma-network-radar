@@ -53,7 +53,16 @@ click.rich_click.COMMAND_GROUPS = {
     ]
 }
 
-@click.group(invoke_without_command=True)
+@click.group(invoke_without_command=True, epilog="""
+    [bold underline]Quick Start Guide:[/bold underline]
+    [cyan]kharma run[/cyan]                        Start the Live Radar
+    [cyan]kharma run --protect[/cyan]              Start with Auto-Kill Malware IPS
+    [cyan]kharma daemon start[/cyan]               Deploy the silent Background Monitor
+    [cyan]kharma history[/cyan]                    View historical connections
+    [cyan]kharma config vt <API_KEY>[/cyan]        Register VirusTotal EDR Key
+    
+    [dim italic]Run `kharma COMMAND --help` for detailed instructions on any command.[/dim italic]
+""")
 @click.pass_context
 def cli(ctx):
     """
