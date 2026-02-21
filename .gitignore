@@ -1,0 +1,24 @@
+# Environment/Virtualenv
+venv/
+env/
+.env
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Build/Distribution
+build/
+dist/
+*.spec
+*.egg-info/
+.eggs/
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Kharma Local Data
+malware_ips.txt
+GeoLite2-City.mmdb
+kharma_history.db

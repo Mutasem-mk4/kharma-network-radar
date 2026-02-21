@@ -1,0 +1,5 @@
+click==8.1.7
+rich==13.7.1
+psutil==5.9.8
+requests==2.31.0
+maxminddb==2.5.2
