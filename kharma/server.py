@@ -54,11 +54,12 @@ class KharmaWebServer:
             Threat Intel, GeoIP, and VirusTotal engines to build a complete JSON response.
             """
             try:
+                self.scanner.scan()
                 active_connections = self.scanner.get_active_connections()
                 radar_data = []
 
                 for conn in active_connections:
-                    remote_ip = conn['remote_address']
+                    remote_ip = conn['remote_ip']
                     
                     # 1. GeoIP Lookup
                     location = "[LOCAL]"
@@ -78,7 +79,7 @@ class KharmaWebServer:
                     # 2. Threat Intel (Malware Detection)
                     is_malware = False
                     status_text = conn['status']
-                    if remote_ip and self.intel.is_malicious(remote_ip):
+                    if remote_ip and self.intel.check_ip(remote_ip):
                         is_malware = True
                         status_text = "BREACHED"
 
@@ -101,7 +102,7 @@ class KharmaWebServer:
                         "process_name": conn.get('name', 'Unknown'),
                         "pid": conn.get('pid', 'N/A'),
                         "exe": conn.get('exe', ''),
-                        "local_address": f"{conn.get('local_address')}:{conn.get('local_port')}",
+                        "local_address": f"{conn.get('local_ip')}:{conn.get('local_port')}",
                         "remote_address": f"{remote_ip}:{conn.get('remote_port')}",
                         "location": location,
                         "country_code": country_code,
