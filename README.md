@@ -1,91 +1,87 @@
-# Walkthrough: Kharma - The Over-Watch Network Monitor
+<div align="center">
+  <img src="https://img.icons8.com/nolan/256/radar.png" alt="Kharma Logo" width="120" />
+  <h1>Kharma_Radar</h1>
+  <p><b>The Over-Watch Network Monitor</b></p>
+  <p>
+    <a href="https://pypi.org/project/kharma-radar/"><img src="https://img.shields.io/pypi/v/kharma-radar?color=10b981&label=PyPI%20Release&style=for-the-badge" alt="PyPI" /></a>
+    <img src="https://img.shields.io/badge/Python-3.8+-blue?style=for-the-badge&logo=python" alt="Python 3.8+" />
+    <img src="https://img.shields.io/badge/License-MIT-purple?style=for-the-badge" alt="License MIT" />
+  </p>
+  <p><i>An elite cybersecurity CLI & Full-Stack Web tool that maps active connections to process IDs, geographical locations, and global threat intelligence feeds in real-time.</i></p>
+</div>
 
-`kharma` is a high-impact cybersecurity CLI tool built to solve the "blind spot" problem in system networking. It provides a stunning, live-updating radar of all active external connections, mapping them directly to process IDs, names, geographical locations, and threat intelligence feeds.
+---
 
-## Summary of Work Completed
-The tool was originally built from scratch using Python (`rich`, `psutil`) for cross-platform compatibility. Over three distinct phases, it evolved from a basic network scanner into an elite, no-lag security monitor packaged as a zero-dependency standalone Windows executable (`kharma.exe`).
+## 👁️ What is Kharma?
 
-### Elite Features (Phase 2 & 3)
-- **Offline Geo-IP Database:** Replaced rate-limited web APIs with an offline `MaxMind GeoLite2` database (~30MB). It downloads automatically on the first run, providing **0ms lag**, unlimited lookups, and total privacy. Data is permanently cached in `~/.kharma`.
-- **Built-in Malware Intelligence:** Integrates a local threat feed (Firehol Level 1). The radar instantly cross-references every IP against thousands of known botnets and hacker servers, triggering a visual "Red Alert" (`🚨 [MALWARE]`) if breached.
-- **Traffic Logging (Time Machine):** Includes a silent background SQLite logger (`--log`). Users can review historical connections and past breaches using the `history` command, answering the question: "What did my system connect to while I was away?"
-- **Smart Filters:** Allows targeting specific processes (`--filter chrome`) or hiding all benign traffic to focus exclusively on threat alerts (`--malware-only`).
-- **Auto-UAC Escalation (Windows):** The standalone `kharma.exe` automatically detects standard user permissions, invokes the Windows User Account Control (UAC) prompt, and relaunches itself with full Administrator rights required for deep packet reading.
-- **Standalone Executable:** Compiled using `PyInstaller`. The entire application, dependencies, and logic are bundled into a single file (`kharma.exe`) for frictionless distribution.
+Traditional network monitoring on Linux/Windows requires manually chaining `netstat`, `grep`, `lsof`, and external IP checkers. This is slow and tedious during an incident response.
 
-### Core Features (Phase 1)
-- **Live Network Radar:** Uses `rich.Live` to create a jank-free, auto-updating dashboard.
-- **Process Correlation:** Uses `psutil` to instantly map IP connections to the actual binary running on the system (e.g., matching a connection on port 443 to `chrome.exe`).
-- **Interactive Termination:** Includes a `kharma kill <PID>` subcommand to safely terminate suspicious processes directly from the terminal.
+**Kharma** acts as an all-seeing eye for your operating system. It provides a stunning, high-performance radar that intercepts outbound connections, unmasks the executable initiating the socket, runs the file against 70+ Anti-Virus engines in the cloud, and plots the destination IP on a map—all updated every 2 seconds.
 
-## The Architecture
-The dashboard aggregates data from three distinct, fast intel sources, and saves data to a persistent user directory (`~/.kharma`) to persist across executable runs:
+---
 
-```mermaid
-graph TD
-    A[main.py CLI] --> B(dashboard.py)
-    B --> C{scanner.py}
-    B --> D{geoip.py}
-    B --> H{threat.py}
-    A --> I{logger.py}
-    
-    C -->|psutil| E[OS Network Stack]
-    D -->|Local MMDB| F[(~/.kharma/GeoLite2-City.mmdb)]
-    H -->|Local Blocklist| G[(~/.kharma/malware_ips.txt)]
-    I -->|SQLite| J[(~/.kharma/kharma_history.db)]
-    
-    A --> K[kill command]
-```
+## 🔥 Elite Features
 
-## How to Install
-**Windows (Recommended):**
-1. Download the standalone executable `kharma.exe` (located in the `dist/` folder).
-2. Double-click to run. No installation or Python required.
+- 🌐 **Web UI Dashboard (New in v5.0):** Spawns a hidden Flask backend serving a beautiful, dark-themed HTML/JS Dashboard. View live connections, Geo-locations, and kill malware right from your browser.
+- 🦠 **Enterprise EDR (VirusTotal):** Natively extracts the physical binary path of connected processes (`.exe` / ELF), computes its SHA-256 hash locally, and verifies it against VirusTotal limits.
+- ⚔️ **Active Defense (Auto-Kill IPS):** Instantly terminates any process the millisecond it initiates a connection to a known malicious IP (Firehol blocklist) or a flagged binary hash.
+- 📡 **Offline Geo-IP Engine:** Built-in `MaxMind GeoLite2` database ensures **0ms lag** when resolving IP coordinates. No external rate limits, 100% privacy.
+- 🗄️ **Time Machine Logger:** Silently records all established connections to a local SQLite database (`~/.kharma/kharma_history.db`) for post-incident forensics.
+- 🤖 **Background Daemon & Telegram Alerts:** Run `kharma daemon start` to deploy a headless background worker that watches traffic quietly and pushes critical breach alerts dynamically to Telegram. 
 
-**Python Source Code:**
-1. Navigate to the project directory and run `setup_windows.bat` or `sudo ./setup_linux.sh`
-2. This installs `pip` dependencies and creates a wrapper in your system's PATH.
+---
 
-## Usage Commands
+## 🚀 Installation
 
-You can run `kharma --help` at any time to see the built-in command menu.
-
-**1. Live Radar (Standard Mode)**
-Launch the standard dashboard. (Automatically requests Admin privileges if missing):
+### Option 1: Install via PyPI (Recommended for Python Users)
 ```bash
-kharma run
+pip install kharma-radar
 ```
 
-**2. Smart Filtering**
-Filter the live radar to only show specific apps, or only show malicious botnet connections:
+### Option 2: Standalone Windows Executable
+Don't have Python? Download the pre-compiled `kharma.exe` from the [Releases tab](#) and run it anywhere. Zero dependencies required.
+
+---
+
+## 💻 Quick Start Guide
+
+Kharma is an intelligent CLI that relies on the incredibly styled `rich-click` interface. Run `kharma --help` at any time.
+
+| Command | Description |
+|---|---|
+| `kharma run` | Start the Live Network Radar Dashboard in the Terminal. |
+| `kharma run --protect` | Start Dashboard + **Auto-Kill Malware** (Active Defense). |
+| `kharma web` | Launch the Dark Web UI Dashboard (Localhost). |
+| `kharma daemon start` | Deploy the silent Background Monitor. |
+| `kharma history` | View historical connections (Time Machine). |
+| `kharma config vt <KEY>` | Register a free VirusTotal API Key for advanced EDR. |
+
+### 🌍 The Web UI Dashboard
+Get the ultimate Full-Stack experience visually tracking your network:
 ```bash
-kharma run --filter chrome
-kharma run --malware-only
+root@linux:~# kharma web --port 8080
+[*] Initializing Kharma Web Dashboard...
+[*] Spawning background data scanner loop...
+[*] Dashboard launched at: http://127.0.0.1:8080
 ```
+*(Simply open your browser to the URL and watch the data flow!)*
 
-**3. Time Machine (Logging Mode)**
-Launch the radar and silently record all new connections to the local SQLite database:
-```bash
-kharma run --log
-```
-*Note: You can combine flags, e.g., `kharma run --log --malware-only`*
+---
 
-**4. Review History**
-View a table of past network connections that were recorded by the logger.
-```bash
-kharma history
-kharma history --limit 100
-kharma history --malware-only
-```
+## 🏗️ Architecture
 
-**5. Terminate Process**
-Kill a suspicious process discovered in the radar:
-```bash
-kharma kill 1234
-```
+Kharma is designed for maximum performance, minimal dependencies, and absolute oversight.
 
-## Final Validation Results
-- [x] **Zero Latency:** The Offline GeoIP database effectively eliminated the 5-second UI hangs observed in Phase 1.
-- [x] **Threat Detection:** Simulated and actual tests confirmed the Red Alert styling triggers accurately when evaluating a malicious IP address.
-- [x] **History Retention:** The SQLite database correctly prevents duplicate spamming and successfully retrieves logs using the `history` command.
-- [x] **Independent Distribution:** `kharma.exe` runs flawlessly as an untethered executable and triggers Auto-UAC logic successfully on Windows.
+- **Frontend:** `rich` (Terminal TUI) & `Tailwind.css + JavaScript` (Web UI).
+- **Backend Core:** `psutil` (Socket Hooks), `Flask` (REST API).
+- **Persistence:** Local `SQLite` for logging and `.mmdb` for GeoIP lookups.
+
+---
+
+## 🛡️ Disclaimer
+*Kharma is developed strictly for educational purposes, system administration, and defensive cybersecurity operations. The author is not responsible for any misuse or damage caused by terminating critical system processes via the Auto-Kill features.*
+
+<div align="center">
+  <b>Developed by Mutasem</b><br>
+  <i>Cybersecurity & Software Engineer</i>
+</div>
