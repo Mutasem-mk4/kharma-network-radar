@@ -1,0 +1,6 @@
+kharma-radar (1.0.0-1) kali-dev; urgency=medium
+
+  * Initial release for Kali Linux / Debian.
+  * Added offline GeoIP, Malware Threat feeds, and Smart Filters.
+
+ -- Mutasem <mutasem-mk4@github.com>  Sat, 21 Feb 2026 12:00:00 +0000

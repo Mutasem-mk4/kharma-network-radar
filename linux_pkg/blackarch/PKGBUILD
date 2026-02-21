@@ -1,0 +1,26 @@
+# Maintainer: Mutasem (@Mutasem-mk4)
+# Description: Kharma - The Over-Watch Network Monitor
+
+pkgname=kharma
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="An elite CLI tool mapping active connections to process IDs, geographical locations, and threat intelligence."
+arch=('any')
+url="https://github.com/Mutaz/kharma-network-radar"
+license=('MIT')
+groups=('blackarch' 'blackarch-networking')
+depends=('python' 'python-click' 'python-rich' 'python-psutil' 'python-requests' 'python-maxminddb')
+makedepends=('python-build' 'python-installer' 'python-wheel' 'python-setuptools')
+source=("https://files.pythonhosted.org/packages/source/k/kharma-radar/kharma_radar-${pkgver}.tar.gz")
+sha256sums=('b3cc494b83626e8db881bc6c5608afc5d8f5c25ac983dd872a08bc8ad26cd859')
+
+build() {
+  cd "$srcdir/kharma_radar-$pkgver"
+  python -m build --wheel --no-isolation
+}
+
+package() {
+  cd "$srcdir/kharma_radar-$pkgver"
+  python -m installer --destdir="$pkgdir" dist/*.whl
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}
