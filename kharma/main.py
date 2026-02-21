@@ -71,8 +71,13 @@ def run_radar(log_enabled=False, proc_filter=None, malware_only=False, auto_kill
             if getattr(sys, 'frozen', False):
                 # Running as PyInstaller executable
                 ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, params, None, 1)
+            elif script.lower().endswith('.exe'):
+                # Running as a pip-installed console script (e.g. kharma.exe)
+                # We bypass the wrapper and call the python module directly to avoid crash loops
+                module_args = f'-m kharma.main {params}'
+                ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, module_args, None, 1)
             else:
-                # Running as Python script
+                # Running as Python script directly
                 ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, f'"{script}" {params}', None, 1)
             
             # Exit this unprivileged instance
