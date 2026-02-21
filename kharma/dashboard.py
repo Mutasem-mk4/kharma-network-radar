@@ -5,7 +5,7 @@ from rich.text import Text
 from rich import box
 import psutil
 
-def create_radar_table(scanner, geoip_resolver, intel, logger=None, proc_filter=None, malware_only=False):
+def create_radar_table(scanner, geoip_resolver, intel, logger=None, proc_filter=None, malware_only=False, auto_kill=False):
     """
     Creates the main Rich table displaying the live network connections.
     """
@@ -81,6 +81,14 @@ def create_radar_table(scanner, geoip_resolver, intel, logger=None, proc_filter=
                 status = f"[green]{conn.status}[/green]"
                 if is_malware:
                     status = f"[bold red blink]BREACHED[/bold red blink]"
+                    if auto_kill and conn.pid:
+                        try:
+                            # Active Defense: Auto-Kill
+                            psutil.Process(conn.pid).terminate()
+                            status = f"[bold white on red blink]AUTO-KILLED[/bold white on red blink]"
+                            p_name = f"[strike]{p_name}[/strike]"
+                        except (psutil.NoSuchProcess, psutil.AccessDenied):
+                            status = f"[bold red blink]KILL FAILED[/bold red blink]"
                     
                 # Traffic Logging (Time Machine)
                 if logger and conn.raddr:

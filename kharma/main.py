@@ -40,9 +40,10 @@ def cli(ctx):
 @click.option('--log', is_flag=True, help="Silently log new connections to a local history database.")
 @click.option('--filter', '-f', default=None, help="Only show processes that match this name (e.g. 'chrome').")
 @click.option('--malware-only', '-m', is_flag=True, help="Only display connections flagged as known malware/botnets.")
-def run_cmd(log, filter, malware_only):
+@click.option('--protect', '-p', is_flag=True, help="Auto-Kill mode: Instantly terminate any process connecting to a malware IP.")
+def run_cmd(log, filter, malware_only, protect):
     """Start the Live Network Radar."""
-    run_radar(log_enabled=log, proc_filter=filter, malware_only=malware_only)
+    run_radar(log_enabled=log, proc_filter=filter, malware_only=malware_only, auto_kill=protect)
 
 @cli.command('history')
 @click.option('--limit', default=50, help="Number of past connections to show.")
@@ -52,7 +53,7 @@ def history_cmd(limit, malware_only):
     logger = TrafficLogger()
     logger.show_history(limit=limit, only_malware=malware_only)
 
-def run_radar(log_enabled=False, proc_filter=None, malware_only=False):
+def run_radar(log_enabled=False, proc_filter=None, malware_only=False, auto_kill=False):
     # Ensure run as admin/root for full visibility
     if platform.system() == "Windows":
         import ctypes
@@ -94,11 +95,13 @@ def run_radar(log_enabled=False, proc_filter=None, malware_only=False):
         console.print(f"[dim]Filtering for process: '{proc_filter}'[/dim]")
     if malware_only:
         console.print("[bold red]MALWARE-ONLY MODE ENABLED. Hide all safe traffic.[/bold red]")
+    if auto_kill:
+        console.print("[bold white on red blink] 🛡️  AUTO-KILL IPS ENABLED. Malware connections will be terminated instantly. [/bold white on red blink]")
     
-    with Live(create_radar_table(scanner, geoip, intel, logger, proc_filter, malware_only), console=console, refresh_per_second=2) as live:
+    with Live(create_radar_table(scanner, geoip, intel, logger, proc_filter, malware_only, auto_kill), console=console, refresh_per_second=2) as live:
         try:
             while True:
-                live.update(create_radar_table(scanner, geoip, intel, logger, proc_filter, malware_only))
+                live.update(create_radar_table(scanner, geoip, intel, logger, proc_filter, malware_only, auto_kill))
                 time.sleep(1.5)
         except KeyboardInterrupt:
             console.print("\n[dim]Radar offline. Stay safe.[/dim]")
@@ -130,6 +133,64 @@ def sniff_cmd(pid, count):
     """Deep Packet Inspection (DPI). Sniff live traffic from a specific PID."""
     sniffer = DPISniffer(pid)
     sniffer.start_sniffing(packet_count=count)
+
+@cli.command('_daemon_run', hidden=True)
+@click.option('--protect', is_flag=True)
+def daemon_run(protect):
+    try:
+        from kharma.daemon import KharmaDaemon
+    except ImportError:
+        from daemon import KharmaDaemon
+    try:
+        daemon = KharmaDaemon(auto_kill=protect)
+        daemon.run()
+    except Exception as e:
+        pass # Die silently in background
+
+@cli.group()
+def daemon():
+    """Manage silent background monitoring and alerts."""
+    pass
+
+@daemon.command('start')
+@click.option('--protect', '-p', is_flag=True, help="Enable Auto-Kill while in background.")
+def daemon_start(protect):
+    """Start the background daemon."""
+    console.print("[cyan]Spawning Kharma Background Daemon...[/cyan]")
+    import subprocess
+    import sys
+    script = os.path.abspath(sys.argv[0])
+    args = [sys.executable, script, "_daemon_run"]
+    if protect:
+        args.append("--protect")
+        
+    if getattr(sys, 'frozen', False):
+        args = [sys.executable, "_daemon_run"]
+        if protect:
+             args.append("--protect")
+             
+    try:
+        if platform.system() == "Windows":
+            subprocess.Popen(args, creationflags=0x00000008) # DETACHED_PROCESS
+        else:
+            subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+        console.print("[bold green]Daemon deployed successfully. Monitoring network in the background.[/bold green]")
+        if protect:
+            console.print("[bold red]Active Defense (Auto-Kill) is ENABLED.[/bold red]")
+    except Exception as e:
+        console.print(f"[bold red]Failed to start daemon: {e}[/bold red]")
+
+@daemon.command('config')
+@click.option('--bot-token', prompt=True, hide_input=True, help="Telegram Bot Token")
+@click.option('--chat-id', prompt=True, help="Telegram Chat ID")
+def daemon_config(bot_token, chat_id):
+    """Configure Telegram Alerts."""
+    import json
+    config_path = os.path.expanduser("~/.kharma/daemon_config.json")
+    with open(config_path, "w") as f:
+        json.dump({"telegram_bot_token": bot_token, "telegram_chat_id": chat_id}, f)
+    console.print(f"[green]Configuration saved to {config_path}[/green]")
+    console.print("[cyan]Telegram alerts are now active for the daemon.[/cyan]")
 
 if __name__ == '__main__':
     cli()
