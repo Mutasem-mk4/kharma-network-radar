@@ -74,30 +74,32 @@ click.rich_click.GROUP_ARGUMENTS_OPTIONS = True
 click.rich_click.STYLE_EPILOG_TEXT = "white"
 
 HEADER = r"""
-[bold cyan] _  _ _  _ ____ ____ _  _ ____ [/bold cyan]
-[bold cyan] |_/  |__| |__| |__/ |\/| |__| [/bold cyan]
-[bold cyan] | \  |  | |  | |  \ |  | |  | [/bold cyan]
-[bold white]   >> ELITE NETWORK MONITOR <<[/bold white]
-"""
++---------------------------------------+
+|   K  H  A  R  M  A     R  A  D  A  R  |
++---------------------------------------+
+|  >>  THE OVER-WATCH NETWORK MONITOR <<|
++---------------------------------------+"""
 
-FOOTER = f"""
-[bold underline]🚀 Tactical Quick Start[/bold underline]
-[cyan]• Radar:[/cyan]   [white]kharma run[/white]
-[cyan]• Web:[/cyan]     [white]kharma web[/white]
-[cyan]• Shield:[/cyan]  [white]kharma run --protect[/white]
-[cyan]• Silent:[/cyan]  [white]kharma daemon start[/white]
-"""
+FOOTER = "[dim italic]Run 'kharma [CMD] --help' for module documentation.[/dim italic]"
 
 @click.group(invoke_without_command=True, epilog=FOOTER)
 @click.pass_context
 def cli(ctx):
-    f"""\b
-{HEADER}
-[bold white]   >> ELITE NETWORK MONITOR <<[/bold white]
+    """\b
++---------------------------------------+
+|   K  H  A  R  M  A     R  A  D  A  R  |
++---------------------------------------+
+|  >>  THE OVER-WATCH NETWORK MONITOR <<|
++---------------------------------------+
 
-[bold cyan]KHARMA ENGINE v10.1.6[/bold cyan]
+[bold underline]🚀 TACTICAL QUICK START[/bold underline]
+[cyan]  [ Radar ] [/cyan] [white]kharma run[/white]
+[cyan]  [ Web   ] [/cyan] [white]kharma web[/white]
+[cyan]  [ Shield] [/cyan] [white]kharma run --protect[/white]
+[cyan]  [ Silent] [/cyan] [white]kharma daemon start[/white]
+
+[dim]KHARMA ENGINE v10.1.8[/dim]
 Reveals hidden connections and bad karma processes.
-Built for active defense and zero-latency forensics.
 """
     if ctx.invoked_subcommand is None:
         run_radar()
