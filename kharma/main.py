@@ -59,6 +59,8 @@ click.rich_click.OPTION_GROUPS = {
             "name": "Visualization Options",
             "options": ["--filter", "--malware-only"],
         },
+        {
+            "name": "Operational Controls",
             "options": ["--log", "--protect"],
         },
     ]
