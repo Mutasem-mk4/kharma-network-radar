@@ -7,7 +7,7 @@
     <title>Kharma_Radar - Over-Watch Dashboard</title>
 
     <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/lucide@0.294.0"></script>
 
     <!-- Leaflet Configuration -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
@@ -694,7 +694,15 @@
         var eventIcons = { THREAT: '🚨', BLOCKED: '🛡️', COMMUNITY_FLAG: '👥', DPI_ALERT: '⚠️' };
         var mapMarkers = [];
 
-        try { if (typeof lucide !== 'undefined') lucide.createIcons(); } catch (e) { }
+        try {
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            } else {
+                console.warn("Lucide icons failed to load.");
+            }
+        } catch (e) {
+            console.error(e);
+        }
 
         // Map Setup
         function initMap() {

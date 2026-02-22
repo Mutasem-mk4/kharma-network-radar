@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "C:\Users\User\AppData\Local\Programs\Python\Python312\Lib\site-packages\kharma\server.py", line 89, in get_live_radar
+    location = f"{lat_lon[2]}, {lat_lon[3]}"
+                  ~~~~~~~^^^
+IndexError: string index out of range

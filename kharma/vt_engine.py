@@ -90,8 +90,6 @@ class VTEngine:
         # To prevent the server from hanging due to vt-py automatically sleeping on rate limits (4/min),
         # we bypass the synchronous internet fetch here. A real implementation would push this to a background worker.
         return None, None
-        except Exception:
-            return None, None
 
     def close(self):
         if self.client:

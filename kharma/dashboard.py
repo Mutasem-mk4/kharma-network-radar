@@ -72,7 +72,9 @@ def create_radar_table(scanner, geoip_resolver, intel, vt_engine=None, logger=No
             remote = f"[yellow]{ip}:{port}[/yellow]"
         
         # Resolve Location
-        location = geoip_resolver.resolve(ip)
+        loc_data = geoip_resolver.resolve(ip)
+        location = loc_data[2] if isinstance(loc_data, tuple) and len(loc_data) >= 3 else str(loc_data)
+        
         if is_malware:
             location = f"[bold red blink]{location} [MALWARE][/bold red blink]"
         

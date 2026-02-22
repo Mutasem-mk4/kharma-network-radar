@@ -3,9 +3,11 @@
   <h1>Kharma_Radar</h1>
   <p><b>The Over-Watch Network Monitor</b></p>
   <p>
-    <a href="https://pypi.org/project/kharma-radar/"><img src="https://img.shields.io/pypi/v/kharma-radar?color=10b981&label=PyPI%20Release&style=for-the-badge" alt="PyPI" /></a>
-    <img src="https://img.shields.io/badge/Python-3.8+-blue?style=for-the-badge&logo=python" alt="Python 3.8+" />
-    <img src="https://img.shields.io/badge/License-MIT-purple?style=for-the-badge" alt="License MIT" />
+    <a href="https://pypi.org/project/kharma-radar/"><img src="https://img.shields.io/pypi/v/kharma-radar?color=10b981&label=PyPI&style=flat-square" alt="PyPI" /></a>
+    <img src="https://img.shields.io/pypi/dm/kharma-radar?color=blue&style=flat-square" alt="Downloads" />
+    <img src="https://img.shields.io/badge/Python-3.8+-blue?style=flat-square&logo=python" alt="Python 3.8+" />
+    <img src="https://img.shields.io/github/license/Mutaz/kharma-network-radar?color=purple&style=flat-square" alt="License MIT" />
+    <img src="https://img.shields.io/github/actions/workflow/status/Mutaz/kharma-network-radar/publish.yml?branch=master&style=flat-square&label=Security%20Publish" alt="Security Publish" />
   </p>
   <p><i>An elite cybersecurity CLI & Full-Stack Web tool that maps active connections to process IDs, geographical locations, and global threat intelligence feeds in real-time.</i></p>
 </div>

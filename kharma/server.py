@@ -89,12 +89,16 @@ class KharmaWebServer:
                     lat, lon = None, None
                     if remote_ip and not remote_ip.startswith(('127.', '192.168.', '10.')):
                         lat_lon = self.geoip.resolve(remote_ip)
-                        if lat_lon is not None and isinstance(lat_lon, tuple) and len(lat_lon) == 3:
-                            lat, lon, location_str = lat_lon
-                            location = location_str
-                            country_code = location_str.split(',')[-1].strip() if ',' in location_str else "N/A"
+                        if isinstance(lat_lon, tuple):
+                            if len(lat_lon) >= 3:
+                                lat, lon, location_str = lat_lon[0], lat_lon[1], lat_lon[2]
+                                location = location_str
+                                country_code = location_str.split(',')[-1].strip() if ',' in location_str else "N/A"
+                            else:
+                                location = "Tuple Error"
+                                country_code = "N/A"
                         else:
-                            location = lat_lon if isinstance(lat_lon, str) else "[UNKNOWN]"
+                            location = str(lat_lon) if lat_lon else "[UNKNOWN]"
                             country_code = "N/A"
 
                     # 2. Threat Intel (Malware Detection)
