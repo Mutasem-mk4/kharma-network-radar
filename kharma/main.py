@@ -68,26 +68,23 @@ click.rich_click.OPTION_GROUPS = {
 
 HEADER = """
 [bold cyan]
-      ___                                             
-     /__/|                                            
-    |  |:|                                            
-    |  |:|     ___     ___   ___  ___  ___  ___       
-  __|  |:|    /__/|   /  /| /  /|/  /|/  /|/  /|      
- /__/\_|:|__ |  |:|  /  / |/  / |  |:|  |:|  |:|      
- \__\ |__|__| |__|__| \__/| \__/| |__|__| |__|__|      
-[/bold cyan]
-[bold white]>> THE OVER-WATCH NETWORK MONITOR <<[/bold white]
-[dim]Built for Cyber Defense, Process Attribution, and Global Intel.[/dim]
+  _  ___  _   _   _   ____  __  __    _    
+ | |/ / || | | | | | |  _ \|  \/  |  / \   
+ | ' /| || |_| | | | | |_) | |\/| | / _ \  
+ | . \|__   _| |_| | |  _ <| |  | |/ ___ \ 
+ |_|\_\  |_|  \___/  |_| \_\_|  |_/_/   \_\ [/bold cyan]
+[bold white]   >> THE OVER-WATCH NETWORK MONITOR <<[/bold white]
+[dim]       Built for Cyber Defense and Global Intel.[/dim]
 """
 
 @click.group(invoke_without_command=True, epilog=f"""
 {HEADER}
 [bold underline]🚀 Quick Start Console[/bold underline]
 
-  [cyan]1. Live Radar:[/cyan]      [white]kharma run[/white]
-  [cyan]2. Web Dashboard:[/cyan]  [white]kharma web[/white]
-  [cyan]3. Auto-Protect:[/cyan]   [white]kharma run --protect[/white]
-  [cyan]4. Background:[/cyan]     [white]kharma daemon start[/white]
+  [cyan]• Live Radar:[/cyan]      [white]kharma run[/white]
+  [cyan]• Web Dashboard:[/cyan]  [white]kharma web[/white]
+  [cyan]• Auto-Protect:[/cyan]   [white]kharma run --protect[/white]
+  [cyan]• Background:[/cyan]     [white]kharma daemon start[/white]
 
 [dim italic]Run 'kharma [COMMAND] --help' for tactical documentation on any module.[/dim italic]
 """)
