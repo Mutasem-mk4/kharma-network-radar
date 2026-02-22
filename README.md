@@ -3,7 +3,7 @@
   <h1>Kharma_Radar</h1>
   <p><b>The Over-Watch Network Monitor</b></p>
   <p>
-    <a href="https://pypi.org/project/kharma-radar/"><img src="https://img.shields.io/pypi/v/kharma-radar?color=10b981&label=PyPI&style=flat-square" alt="PyPI" /></a>
+    <a href="https://pypi.org/project/kharma-radar/"><img src="https://img.shields.io/pypi/v/kharma-radar?label=PyPI%20Release&color=10b981&style=flat-square" alt="PyPI" /></a>
     <img src="https://img.shields.io/pypi/dm/kharma-radar?color=blue&style=flat-square" alt="Downloads" />
     <img src="https://img.shields.io/badge/Python-3.8+-blue?style=flat-square&logo=python" alt="Python 3.8+" />
     <img src="https://img.shields.io/github/license/Mutaz/kharma-network-radar?color=purple&style=flat-square" alt="License MIT" />
