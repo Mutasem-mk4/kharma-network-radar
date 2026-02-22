@@ -2,8 +2,9 @@ import os
 import sys
 import psutil
 import random
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify, request, make_response
 from flask_cors import CORS
+from flask_talisman import Talisman
 
 # Attempt to load Kharma internal modules depending on execution context
 try:
@@ -16,6 +17,9 @@ try:
     from kharma.shield import ShieldManager
     from kharma.guardian import GuardianBot
     from kharma.forensics import ForensicsDB
+    from kharma.hunter import HunterEngine
+    from kharma.behavior import BehaviorEngine
+    from kharma.swarm import SwarmEngine
 except ImportError:
     from scanner import NetworkScanner
     from geoip import GeoIPResolver
@@ -26,11 +30,15 @@ except ImportError:
     from shield import ShieldManager
     from guardian import GuardianBot
     from forensics import ForensicsDB
+    from hunter import HunterEngine
+    from behavior import BehaviorEngine
+    from swarm import SwarmEngine
 
 class KharmaWebServer:
     def __init__(self, host="127.0.0.1", port=8085):
         self.host = host
         self.port = port
+        self.secret_token = self._generate_session_token()
         
         # Determine the correct templates folder path regardless of pip vs source install
         if getattr(sys, 'frozen', False):
@@ -41,9 +49,56 @@ class KharmaWebServer:
             template_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates')
             
         self.app = Flask(__name__, template_folder=template_dir, static_folder=template_dir)
-        CORS(self.app)  # Allow frontend requests
+        
+        # Security Hardening: Lockdown CORS to strict localhost
+        CORS(self.app, resources={r"/api/*": {"origins": ["http://127.0.0.1:*", "http://localhost:*"]}})
+        
+        # Security Hardening: Content Security Policy (CSP) and Security Headers
+        csp = {
+            'default-src': '\'self\'',
+            'script-src': [
+                '\'self\'',
+                'https://cdn.tailwindcss.com',
+                'https://unpkg.com',
+                'https://cdn.jsdelivr.net'
+            ],
+            'style-src': [
+                '\'self\'',
+                '\'unsafe-inline\'',
+                'https://cdn.jsdelivr.net',
+                'https://fonts.googleapis.com'
+            ],
+            'font-src': [
+                '\'self\'',
+                'https://fonts.gstatic.com'
+            ],
+            'img-src': [
+                '\'self\'',
+                'data:',
+                'https://*.tile.openstreetmap.org',
+                'https://img.icons8.com'
+            ]
+        }
+        Talisman(self.app, content_security_policy=csp, force_https=False)
+        
         self._setup_engines()
         self._setup_routes()
+
+    def _generate_session_token(self):
+        """Generates a random token to prevent CSRF and unauthorized API calls."""
+        import secrets
+        return secrets.token_hex(24)
+
+    def _require_auth(self, f):
+        """Security Decorator: Ensures the request carries the correct session token."""
+        from functools import wraps
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            token = request.headers.get('X-Kharma-Token') or request.args.get('token')
+            if not token or token != self.secret_token:
+                return jsonify({"status": "error", "message": "Unauthorized. Secure Session Required."}), 403
+            return f(*args, **kwargs)
+        return decorated_function
 
     def _setup_engines(self):
         """Initialize all the core data gathering engines."""
@@ -57,13 +112,16 @@ class KharmaWebServer:
         self.shield = ShieldManager()
         self.guardian = GuardianBot()
         self.forensics = ForensicsDB()
+        self.hunter = HunterEngine()
+        self.behavior = BehaviorEngine()
+        self.swarm = SwarmEngine(self.secret_token)
 
     def _setup_routes(self):
         @self.app.route('/')
         def index():
             """Serve the main Kharma Dashboard UI."""
-            from flask import make_response
-            resp = make_response(render_template('index.html'))
+            resp = make_response(render_template('index.html', session_token=self.secret_token))
+            # Force anti-cache for security and fresh data
             resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
             resp.headers['Pragma'] = 'no-cache'
             return resp
@@ -76,7 +134,14 @@ class KharmaWebServer:
             """
             try:
                 self.scanner.scan()
+                self.dpi.update_flow_map(self.scanner.flow_map)
+                
                 active_connections = self.scanner.get_active_connections()
+                bandwidth_stats = self.dpi.get_bandwidth_report()
+                
+                settings = self._load_settings()
+                blocked_countries = settings.get('blocked_countries', [])
+                
                 radar_data = []
                 blocked_ips = self.shield.list_blocked()
 
@@ -94,6 +159,12 @@ class KharmaWebServer:
                                 lat, lon, location_str = lat_lon[0], lat_lon[1], lat_lon[2]
                                 location = location_str
                                 country_code = location_str.split(',')[-1].strip() if ',' in location_str else "N/A"
+                                
+                                # --- Geo-Fencing Auto-Block ---
+                                if country_code != "N/A" and country_code in blocked_countries and remote_ip not in blocked_ips:
+                                    if self.shield.block_ip(remote_ip):
+                                        blocked_ips.append(remote_ip)
+                                        self.db.add_event("BLOCKED", remote_ip, conn['name'], location, f"Geo-Fence Policy: {country_code}", "high")
                             else:
                                 location = "Tuple Error"
                                 country_code = "N/A"
@@ -144,6 +215,14 @@ class KharmaWebServer:
                         "is_malware": is_malware,
                         "is_community_flagged": is_community_flagged,
                         "community_reports": community_detail['reports'] if is_community_flagged else 0,
+                        "in_kbps": bandwidth_stats.get(conn['pid'], {}).get('in_kbps', 0),
+                        "out_kbps": bandwidth_stats.get(conn['pid'], {}).get('out_kbps', 0),
+                        "anomalies": self.behavior.analyze(
+                            conn.get('name', 'Unknown'), 
+                            bandwidth_stats.get(conn['pid'], {}).get('in_kbps', 0),
+                            bandwidth_stats.get(conn['pid'], {}).get('out_kbps', 0),
+                            country_code
+                        ),
                         "is_shielded": remote_ip in blocked_ips,
                         "vt_malicious": vt_malicious,
                         "vt_total": vt_total
@@ -200,6 +279,7 @@ class KharmaWebServer:
                 return jsonify({"status": "error", "message": str(e), "trace": traceback.format_exc()}), 500
 
         @self.app.route('/api/kill/<int:pid>', methods=['DELETE'])
+        @self._require_auth
         def kill_process(pid):
             """API Endpoint to instantly terminate a process via the Web UI."""
             try:
@@ -238,6 +318,12 @@ class KharmaWebServer:
         def manage_shield():
             """API Endpoint for manual firewall shield management."""
             try:
+                # Sensitive actions (POST/DELETE) require auth
+                if request.method in ['POST', 'DELETE']:
+                    token = request.headers.get('X-Kharma-Token') or request.args.get('token')
+                    if not token or token != self.secret_token:
+                        return jsonify({"status": "error", "message": "Unauthorized action."}), 403
+
                 if request.method == 'GET':
                     blocked = self.shield.list_blocked()
                     return jsonify({"status": "success", "data": blocked}), 200
@@ -306,6 +392,37 @@ class KharmaWebServer:
                 if request.method == 'DELETE':
                     self.forensics.clear()
                     return jsonify({"status": "success", "message": "History cleared."}), 200
+            except Exception as e:
+                return jsonify({"status": "error", "message": str(e)}), 500
+
+        @self.app.route('/api/hunt/<int:pid>', methods=['GET'])
+        @self._require_auth
+        def hunt_process(pid):
+            """Forensic Endpoint: Deep analysis of a specific process."""
+            result = self.hunter.get_process_details(pid)
+            if result['status'] == 'success':
+                return jsonify(result), 200
+            else:
+                return jsonify(result), 404
+
+        @self.app.route('/api/swarm', methods=['GET', 'POST', 'DELETE'])
+        @self._require_auth
+        def manage_swarm():
+            """Node Management API for Multi-Node Hive."""
+            try:
+                if request.method == 'GET':
+                    self.swarm.sync_all() # Fresh sync for UI
+                    return jsonify({"status": "success", "data": self.swarm.get_hive_summary()}), 200
+                
+                if request.method == 'POST':
+                    data = request.get_json()
+                    self.swarm.add_node(data.get('url'), data.get('token'), data.get('name'))
+                    return jsonify({"status": "success", "message": "Node joined the hive."}), 200
+                
+                if request.method == 'DELETE':
+                    url = request.args.get('url')
+                    self.swarm.remove_node(url)
+                    return jsonify({"status": "success", "message": "Node removed from hive."}), 200
             except Exception as e:
                 return jsonify({"status": "error", "message": str(e)}), 500
 

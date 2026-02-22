@@ -34,6 +34,7 @@ setup(
         'Flask',
         'Flask-Cors',
         'scapy',
+        'flask-talisman',
     ],
     project_urls={
         "Bug Tracker": "https://github.com/Mutaz/kharma-network-radar/issues",

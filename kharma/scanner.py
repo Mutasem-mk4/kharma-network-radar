@@ -5,11 +5,20 @@ class NetworkScanner:
     def __init__(self):
         self.connections = []
         self.process_names = {}
+        self.flow_map = {} # Maps (local_ip, local_port) -> PID
         
     def scan(self):
         """Scans the system for active network connections and their associated processes."""
         self.connections = psutil.net_connections(kind='inet')
         self._update_process_mapping()
+        self._update_flow_map()
+
+    def _update_flow_map(self):
+        """Builds a map of local socket addresses to PIDs."""
+        self.flow_map.clear()
+        for conn in self.connections:
+            if conn.laddr:
+                self.flow_map[(conn.laddr.ip, conn.laddr.port)] = conn.pid
 
     def _update_process_mapping(self):
         """Build a cache of PID to Process Name for faster lookup, handling access denied errors."""

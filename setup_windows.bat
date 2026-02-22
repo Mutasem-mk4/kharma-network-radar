@@ -6,9 +6,21 @@ echo ===================================================
 REM Check for Python
 python --version >nul 2>&1
 IF %ERRORLEVEL% NEQ 0 (
-    echo [ERROR] Python is not installed or not in PATH.
-    echo Please install Python 3.7+ to use Kharma.
-    exit /b 1
+    echo [!] Python not found. Starting "Smart Installer"...
+    echo [!] Checking for winget...
+    winget --version >nul 2>&1
+    IF %ERRORLEVEL% NEQ 0 (
+        echo [ERROR] winget not found. Please install Python manually from python.org
+        echo [!] Be sure to check "Add Python to PATH".
+        pause
+        exit /b 1
+    )
+    echo [1/2] Installing Python 3.12 via winget...
+    winget install -e --id Python.Python.3.12 --scope machine --accept-package-agreements --accept-source-agreements
+    echo.
+    echo [!] Python installed. PLEASE RE-RUN THIS SCRIPT to complete Kharma setup.
+    pause
+    exit /b 0
 )
 
 REM Install dependencies

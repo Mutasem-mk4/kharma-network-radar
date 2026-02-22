@@ -11,7 +11,20 @@ class VTEngine:
         self.db_path = os.path.expanduser("~/.kharma/vt_cache.db")
         self.api_key = self._load_api_key()
         self.client = vt.Client(self.api_key) if self.api_key else None
+        self._secure_config_permissions()
         self._init_cache()
+
+    def _secure_config_permissions(self):
+        """Hardens file permissions for the .kharma directory."""
+        if os.name == 'posix': # Linux/Mac
+            try:
+                base_dir = os.path.dirname(self.config_path)
+                if os.path.exists(base_dir):
+                    os.chmod(base_dir, 0o700) # Only user can access dir
+                if os.path.exists(self.config_path):
+                    os.chmod(self.config_path, 0o600) # Only user can read key
+            except Exception: pass
+        # Windows permissions are handled via ACLs, usually inherited safely from %USERPROFILE%
 
     def _load_api_key(self):
         if os.path.exists(self.config_path):
