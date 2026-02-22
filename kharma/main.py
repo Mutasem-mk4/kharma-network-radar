@@ -39,33 +39,57 @@ click.rich_click.ERRORS_EPILOGUE = "To find out more, visit [link=https://github
 click.rich_click.COMMAND_GROUPS = {
     "kharma": [
         {
-            "name": "Live Intelligence",
-            "commands": ["run", "history", "sniff", "web"],
+            "name": "📡 Intelligence Ops",
+            "commands": ["run", "web", "history", "sniff"],
         },
         {
-            "name": "Active Defense",
+            "name": "🛡️ Active Defense",
             "commands": ["kill"],
         },
         {
-            "name": "Service & Config",
+            "name": "⚙️ System & Config",
             "commands": ["daemon", "config"],
         },
     ]
 }
 
-@click.group(invoke_without_command=True, epilog="""
-[bold underline]Quick Start Guide[/bold underline]
+click.rich_click.OPTION_GROUPS = {
+    "kharma run": [
+        {
+            "name": "Visualization Options",
+            "options": ["--filter", "--malware-only"],
+        },
+        {
+            "name": "Operational Controls",
+            "options": ["--log", "--protect"],
+        },
+    ]
+}
 
-| Command | Description |
-|---|---|
-| `kharma run` | Start the Live Network Radar Dashboard. |
-| `kharma run --protect` | Start Dashboard + [bold red]Auto-Kill Malware[/bold red]. |
-| `kharma web` | Launch the Dark Web UI Dashboard (Localhost). |
-| `kharma daemon start` | Deploy the silent Background Monitor. |
-| `kharma history` | View historical connections (Time Machine). |
-| `kharma config vt <API_KEY>` | Register VirusTotal EDR Key. |
+HEADER = """
+[bold cyan]
+      ___                                             
+     /__/|                                            
+    |  |:|                                            
+    |  |:|     ___     ___   ___  ___  ___  ___       
+  __|  |:|    /__/|   /  /| /  /|/  /|/  /|/  /|      
+ /__/\_|:|__ |  |:|  /  / |/  / |  |:|  |:|  |:|      
+ \__\ |__|__| |__|__| \__/| \__/| |__|__| |__|__|      
+[/bold cyan]
+[bold white]>> THE OVER-WATCH NETWORK MONITOR <<[/bold white]
+[dim]Built for Cyber Defense, Process Attribution, and Global Intel.[/dim]
+"""
 
-[dim italic]Run `kharma COMMAND --help` for detailed instructions on any command.[/dim italic]
+@click.group(invoke_without_command=True, epilog=f"""
+{HEADER}
+[bold underline]🚀 Quick Start Console[/bold underline]
+
+  [cyan]1. Live Radar:[/cyan]      [white]kharma run[/white]
+  [cyan]2. Web Dashboard:[/cyan]  [white]kharma web[/white]
+  [cyan]3. Auto-Protect:[/cyan]   [white]kharma run --protect[/white]
+  [cyan]4. Background:[/cyan]     [white]kharma daemon start[/white]
+
+[dim italic]Run 'kharma [COMMAND] --help' for tactical documentation on any module.[/dim italic]
 """)
 @click.pass_context
 def cli(ctx):
@@ -79,31 +103,36 @@ def cli(ctx):
         run_radar()
 
 @cli.command('run', epilog="""
-    [bold underline]Examples:[/bold underline]
-    [cyan]kharma run[/cyan]                        Start the live radar UI.
-    [cyan]kharma run --log[/cyan]                  Start radar and record history.
-    [cyan]kharma run --filter chrome[/cyan]        Only show Chrome traffic.
-    [cyan]kharma run --malware-only[/cyan]       Hide safe traffic, focus on threats.
-    [cyan]kharma run --protect[/cyan]            [bold red]Auto-Kill[/bold red] mode (Instantly terminate threats).
+[bold underline]Tactical Examples:[/bold underline]
+
+  [cyan]Standard Radar:[/cyan]        [white]kharma run[/white]
+  [cyan]Focus Browser:[/cyan]         [white]kharma run --filter chrome[/white]
+  [cyan]Threat Hunting:[/cyan]        [white]kharma run --malware-only[/white]
+  [cyan]Interceptor Mode:[/cyan]      [white]kharma run --log --protect[/white]
+
+[dim yellow]PRO TIP: Use '--protect' to automatically terminate malware threads before they exfiltrate data.[/dim yellow]
 """)
-@click.option('--log', is_flag=True, help="Silently log new connections to a local history database.")
-@click.option('--filter', '-f', default=None, help="Only show processes that match this name (e.g. 'chrome').")
-@click.option('--malware-only', '-m', is_flag=True, help="Only display connections flagged as known malware/botnets.")
-@click.option('--protect', '-p', is_flag=True, help="[bold red]Auto-Kill mode:[/bold red] Instantly terminate any process connecting to a malware IP.")
+@click.option('--log', is_flag=True, help="[dim]Database:[/dim] Silently log new connections to the local forensics history.")
+@click.option('--filter', '-f', default=None, help="[dim]Attribute:[/dim] Only show processes matching this name (case-insensitive).")
+@click.option('--malware-only', '-m', is_flag=True, help="[dim]Intelligence:[/dim] Stealth mode - hide all safe traffic, highlight only C2/Botnets.")
+@click.option('--protect', '-p', is_flag=True, help="[bold red]SHIELD:[/bold red] Instantly terminate any process connecting to a malicious IP.")
 def run_cmd(log, filter, malware_only, protect):
-    """Start the Live Network Radar Dashboard."""
+    """[📡] Launch the Live Intelligence Radar UI."""
     run_radar(log_enabled=log, proc_filter=filter, malware_only=malware_only, auto_kill=protect)
 
 @cli.command('history', epilog="""
-    [bold underline]Examples:[/bold underline]
-    [cyan]kharma history[/cyan]                  Show the last 50 connections.
-    [cyan]kharma history --limit 200[/cyan]        Show the last 200 connections.
-    [cyan]kharma history --malware-only[/cyan]     [bold red]Forensics:[/bold red] Only show historical malware hits.
+[bold underline]Forensics Examples:[/bold underline]
+
+  [cyan]Recent History:[/cyan]      [white]kharma history[/white]
+  [cyan]Deep Search:[/cyan]         [white]kharma history --limit 500[/white]
+  [cyan]Malware Replay:[/cyan]      [white]kharma history --malware-only[/white]
+
+[dim italic]Historical data is stored locally in ~/.kharma/forensics.db[/dim italic]
 """)
-@click.option('--limit', default=50, help="Number of past connections to show.")
-@click.option('--malware-only', is_flag=True, help="Only show historical connections flagged as Malware.")
+@click.option('--limit', default=50, help="Number of historical events to retrieve.")
+@click.option('--malware-only', is_flag=True, help="Filter history to only show confirmed threat detections.")
 def history_cmd(limit, malware_only):
-    """View the Time Machine history of past network connections."""
+    """[📜] View the Time Machine history of past network connections."""
     logger = TrafficLogger()
     logger.show_history(limit=limit, only_malware=malware_only)
 
@@ -184,15 +213,15 @@ def run_radar(log_enabled=False, proc_filter=None, malware_only=False, auto_kill
         sys.exit(1)
 
 @cli.command('kill', epilog="""
-    [bold underline]Usage:[/bold underline]
-    [cyan]kharma kill <PID>[/cyan]
-    
-    [bold underline]Examples:[/bold underline]
-    [cyan]kharma kill 8542[/cyan]                  Instantly terminate the process running on PID 8542.
+[bold underline]Neutralization:[/bold underline]
+
+  [cyan]Kill PID:[/cyan]           [white]kharma kill 8542[/white]
+
+[bold red]CAUTION:[/bold red] Use this command with care. Terminating essential system processes may cause instability.
 """)
 @click.argument('pid', type=int)
 def kill(pid):
-    """Purge a process by its PID to balance system karma."""
+    """[🔪] Purge a malicious process by its PID to restore system karma."""
     import psutil
     try:
         p = psutil.Process(pid)
@@ -209,16 +238,17 @@ def kill(pid):
         console.print(f"[red]Unexpected error terminating process: {e}[/red]")
 
 @cli.command('sniff', epilog="""
-    [bold underline]Examples:[/bold underline]
-    [cyan]kharma sniff 1234[/cyan]                 Capture the next 100 packets from PID 1234.
-    [cyan]kharma sniff 1234 --count 500[/cyan]       Capture the next 500 packets from PID 1234.
-    
-    [dim italic]* Note: DPI sniffing requires Npcap (Windows) or Root (Linux/macOS).[/dim italic]
+[bold underline]Cyber-Ops Examples:[/bold underline]
+
+  [cyan]Standard Sniff:[/cyan]        [white]kharma sniff 8542[/white]
+  [cyan]Deep Capture:[/cyan]          [white]kharma sniff 8542 --count 1000[/white]
+
+[bold yellow]Requirement:[/bold yellow] DPI sniffing requires [white]Npcap[/white] (Windows) or [white]Root[/white] (Linux).
 """)
 @click.argument('pid', type=int)
-@click.option('--count', default=100, help="Maximum number of packets to capture.")
+@click.option('--count', default=100, help="Total packet limit for this capture session.")
 def sniff_cmd(pid, count):
-    """Deep Packet Inspection (DPI). Sniff live traffic from a specific PID."""
+    """[🕵️] Deep Packet Inspection. Sniff live payloads from a specific PID."""
     sniffer = DPISniffer(pid)
     sniffer.start_sniffing(packet_count=count)
 
@@ -236,12 +266,16 @@ def daemon_run(protect):
         pass # Die silently in background
 
 @cli.group('daemon', epilog="""
-    [bold underline]Description:[/bold underline]
-    Deploys a headless (invisible) Kharma instance that monitors the network 
-    autonomously and sends alerts via Desktop Toast Notifications and Telegram.
+[bold underline]Tactical Background Monitoring:[/bold underline]
+Launches an invisible Kharma instance that monitors the network 
+autonomously and sends real-time alerts via:
+  - [bold yellow]Desktop Notifications[/bold yellow] (Cross-platform)
+  - [bold cyan]Telegram Bot Hooks[/bold cyan] (Global)
+
+[dim italic]Configure alerts first using 'kharma daemon config'[/dim italic]
 """)
 def daemon():
-    """Manage silent background monitoring and alerts."""
+    """[👻] Manage silent background monitoring and alerts."""
     pass
 
 @daemon.command('start', epilog="""
@@ -334,17 +368,18 @@ def config_vt(api_key):
     console.print("[cyan]Kharma will now natively hash all external socket connections and verify them against 70+ AV engines in the cloud.[/cyan]")
 
 @cli.command('web', epilog="""
-    [bold underline]Description:[/bold underline]
-    Spawns a local Flask backend to collect Network Intelligence and launches your 
-    default browser to display the interactive Kharma Dashboard UI.
-    
-    [bold underline]Examples:[/bold underline]
-    [cyan]kharma web[/cyan]                        Launch the dashboard on port 8085.
-    [cyan]kharma web --port 9090[/cyan]            Launch the dashboard on a custom port.
+[bold underline]Description:[/bold underline]
+Launches a browser-based Command Center with global IP mapping,
+live animations, and integrated threat intelligence panels.
+
+  [cyan]Standard Web:[/cyan]          [white]kharma web[/white]
+  [cyan]Custom Port:[/cyan]           [white]kharma web --port 9090[/white]
+
+[dim white]Internal URL: http://localhost:8085[/dim white]
 """)
-@click.option('--port', default=8085, help="Port to run the internal web server on.")
+@click.option('--port', default=8085, help="Specify a custom port for the intelligence server.")
 def web_cmd(port):
-    """Launch the Web UI Dashboard."""
+    """[🌐] Deploy the Full-Stack Dark Dashboard UI."""
     import threading
     import webbrowser
     
