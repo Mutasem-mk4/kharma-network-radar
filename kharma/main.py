@@ -80,7 +80,7 @@ HEADER = r"""
 [bold white]   >> ELITE NETWORK MONITOR <<[/bold white]
 """
 
-@click.group(invoke_without_command=True, epilog=f"""
+FOOTER = f"""\b
 {HEADER}
 [bold underline]🚀 Tactical Quick Start[/bold underline]
 
@@ -89,8 +89,10 @@ HEADER = r"""
 [cyan]• Shield:[/cyan]  [white]kharma run --protect[/white]
 [cyan]• Silent:[/cyan]  [white]kharma daemon start[/white]
 
-[dim italic]Run 'kharma [CMD] --help' for module documentation.[/dim italic]
-""")
+[dim italic]Run 'kharma [CMD] --help' for docs.[/dim italic]
+"""
+
+@click.group(invoke_without_command=True, epilog=FOOTER)
 @click.pass_context
 def cli(ctx):
     """
