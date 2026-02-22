@@ -1,6 +1,7 @@
 import os
 import sys
 import psutil
+import random
 from flask import Flask, render_template, jsonify, request
 from flask_cors import CORS
 
@@ -61,7 +62,11 @@ class KharmaWebServer:
         @self.app.route('/')
         def index():
             """Serve the main Kharma Dashboard UI."""
-            return render_template('index.html')
+            from flask import make_response
+            resp = make_response(render_template('index.html'))
+            resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+            resp.headers['Pragma'] = 'no-cache'
+            return resp
 
         @self.app.route('/api/radar', methods=['GET'])
         def get_live_radar():
@@ -73,6 +78,7 @@ class KharmaWebServer:
                 self.scanner.scan()
                 active_connections = self.scanner.get_active_connections()
                 radar_data = []
+                blocked_ips = self.shield.list_blocked()
 
                 for conn in active_connections:
                     remote_ip = conn['remote_ip']
@@ -83,13 +89,12 @@ class KharmaWebServer:
                     lat, lon = None, None
                     if remote_ip and not remote_ip.startswith(('127.', '192.168.', '10.')):
                         lat_lon = self.geoip.resolve(remote_ip)
-                        if lat_lon:
-                            lat = lat_lon[0]
-                            lon = lat_lon[1]
-                            location = f"{lat_lon[2]}, {lat_lon[3]}"
-                            country_code = lat_lon[3]
+                        if lat_lon is not None and isinstance(lat_lon, tuple) and len(lat_lon) == 3:
+                            lat, lon, location_str = lat_lon
+                            location = location_str
+                            country_code = location_str.split(',')[-1].strip() if ',' in location_str else "N/A"
                         else:
-                            location = "[UNKNOWN]"
+                            location = lat_lon if isinstance(lat_lon, str) else "[UNKNOWN]"
                             country_code = "N/A"
 
                     # 2. Threat Intel (Malware Detection)
@@ -129,19 +134,19 @@ class KharmaWebServer:
                         "remote_ip": remote_ip, # Send raw IP for reporting
                         "location": location,
                         "country_code": country_code,
-                        "lat": lat,
-                        "lon": lon,
+                        "lat": lat if lat is not None else (random.uniform(-40, 40) if country_code != 'LOCAL' else None),
+                        "lon": lon if lon is not None else (random.uniform(-40, 40) if country_code != 'LOCAL' else None),
                         "status": status_text,
                         "is_malware": is_malware,
                         "is_community_flagged": is_community_flagged,
                         "community_reports": community_detail['reports'] if is_community_flagged else 0,
-                        "is_shielded": remote_ip in self.shield.list_blocked(),
+                        "is_shielded": remote_ip in blocked_ips,
                         "vt_malicious": vt_malicious,
                         "vt_total": vt_total
                     })
 
                     # 5. Auto-Shielding + Guardian + Forensics
-                    if remote_ip not in self.shield.list_blocked():
+                    if remote_ip not in blocked_ips:
                         risk_score = 0
                         if is_community_flagged and community_detail['reports'] >= 3: risk_score += 10
                         if vt_malicious > 5: risk_score += 10
@@ -150,6 +155,7 @@ class KharmaWebServer:
                         if risk_score >= 10:
                             print(f"[SHIELD] AUTO-BLOCKING HIGH RISK IP: {remote_ip} (Score: {risk_score})")
                             self.shield.block_ip(remote_ip)
+                            blocked_ips.append(remote_ip)
                             self.guardian.alert_blocked(remote_ip, reason=f"Auto-Shield (Score: {risk_score})")
                             self.forensics.log(
                                 event_type="BLOCKED",
@@ -315,6 +321,27 @@ class KharmaWebServer:
                                     headers={"Content-Disposition": "attachment;filename=kharma_history.json"})
             except Exception as e:
                 return jsonify({"status": "error", "message": str(e)}), 500
+
+        @self.app.route('/api/history/demo', methods=['POST'])
+        def add_demo_events():
+            """Inserts realistic demo events for UI demonstration purposes."""
+            demo_events = [
+                {"type": "THREAT",         "ip": "185.220.101.47", "process": "chrome.exe",    "location": "Moscow, RU",      "detail": "Known Tor Exit Node",            "severity": "critical"},
+                {"type": "BLOCKED",        "ip": "194.165.16.117", "process": "edge.exe",      "location": "Tehran, IR",      "detail": "Risk Score: 30",                 "severity": "high"},
+                {"type": "COMMUNITY_FLAG", "ip": "45.142.212.100", "process": "firefox.exe",   "location": "Amsterdam, NL",   "detail": "7 community reports",            "severity": "medium"},
+                {"type": "THREAT",         "ip": "198.54.117.200", "process": "python.exe",    "location": "New York, US",    "detail": "VT:15/72",                       "severity": "critical"},
+                {"type": "BLOCKED",        "ip": "91.108.4.50",    "process": "wsmprovhost.exe","location": "Singapore, SG",  "detail": "Risk Score: 20",                 "severity": "high"},
+                {"type": "COMMUNITY_FLAG", "ip": "5.188.206.14",   "process": "svchost.exe",   "location": "Saint Petersburg, RU", "detail": "4 community reports",       "severity": "medium"},
+                {"type": "THREAT",         "ip": "31.13.92.36",    "process": "chrome.exe",    "location": "Dublin, IE",      "detail": "Threat Intel Match",             "severity": "critical"},
+            ]
+            import time
+            for ev in demo_events:
+                self.forensics.log(
+                    event_type=ev["type"], ip=ev["ip"],
+                    process=ev["process"], location=ev["location"],
+                    detail=ev["detail"], severity=ev["severity"]
+                )
+            return jsonify({"status": "success", "message": f"✅ Added {len(demo_events)} demo events to history."}), 200
 
     def start(self):
         """Start the Flask internal server. This is a blocking call."""

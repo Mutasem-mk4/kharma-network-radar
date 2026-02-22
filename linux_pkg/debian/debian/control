@@ -8,9 +8,9 @@ Homepage: https://github.com/Mutaz/kharma-network-radar
 
 Package: kharma-radar
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, ${python3:Depends}, python3-click, python3-rich, python3-psutil, python3-requests, python3-maxminddb
+Depends: ${shlibs:Depends}, ${misc:Depends}, ${python3:Depends}, python3-click, python3-rich, python3-psutil, python3-requests, python3-maxminddb, python3-vt-py, python3-rich-click, python3-flask, python3-flask-cors, python3-scapy
 Description: The Over-Watch Network Monitor
  An elite CLI tool mapping active connections to process IDs,
  geographical locations, and threat intelligence feeds. It runs 
  with 0ms lag due to an offline MaxMind database and features a 
- Time Machine traffic logger.
+ Time Machine traffic logger, Web UI Dashboard, Auto-Kill IPS, and DPI.

@@ -54,15 +54,15 @@ class GeoIPResolver:
             console.print(f"[red]Error opening GeoIP Database: {e}[/red]")
 
     def resolve(self, ip_address):
-        """Returns the Country and City for a given IP address."""
+        """Returns (lat, lon, location_string) for a given IP address."""
         if not ip_address:
-            return "Unknown"
+            return (None, None, "Unknown")
             
         if self._is_private(ip_address):
-            return "Local Network"
+            return (None, None, "Local Network")
 
         if not self.reader:
-            return "DB Error"
+            return (None, None, "DB Error")
 
         try:
             match = self.reader.get(ip_address)
@@ -71,23 +71,42 @@ class GeoIPResolver:
                 if not country and 'registered_country' in match:
                     country = match['registered_country'].get('iso_code', '')
                 
-                # Try english name if iso code fails
                 if not country:
                     country = match.get('country', {}).get('names', {}).get('en', '')
                     
                 city = match.get('city', {}).get('names', {}).get('en', '')
                 
+                lat = match.get('location', {}).get('latitude')
+                lon = match.get('location', {}).get('longitude')
+                
+                # Fallback coordinates if DB misses them
+                if lat is None or lon is None:
+                    fallbacks = {
+                        'US': (37.09, -95.71), 'GB': (55.37, -3.43), 
+                        'FR': (46.22, 2.21), 'DE': (51.16, 10.45),
+                        'CN': (35.86, 104.19), 'RU': (61.52, 105.31),
+                        'JP': (36.20, 138.25), 'IE': (53.14, -7.69),
+                        'NL': (52.13, 5.29), 'SG': (1.35, 103.81),
+                        'IN': (20.59, 78.96), 'BR': (-14.23, -51.92),
+                        'AU': (-25.27, 133.77), 'CA': (56.13, -106.34)
+                    }
+                    if country in fallbacks:
+                        lat, lon = fallbacks[country]
+                    else:
+                        import random
+                        lat, lon = (random.uniform(-40, 40), random.uniform(-40, 40))
+
                 location = f"{city}, {country}".strip(', ')
                 if not location:
                     location = "Unknown Location"
                     
-                return location
+                return (lat, lon, location)
             else:
-                return "Unknown"
+                return (None, None, "Unknown")
         except ValueError:
-            return "Invalid IP"
+            return (None, None, "Invalid IP")
         except Exception as e:
-            return "Lookup Error"
+            return (None, None, "Lookup Error")
 
     def _is_private(self, ip_address):
         return ip_address.startswith(self.private_prefixes) or ip_address in ('127.0.0.1', '::1')

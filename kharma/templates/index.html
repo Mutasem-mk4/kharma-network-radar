@@ -7,7 +7,7 @@
     <title>Kharma_Radar - Over-Watch Dashboard</title>
 
     <!-- Lucide Icons -->
-    <script src="https://cdn.jsdelivr.net/npm/lucide@latest/lucide.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
 
     <!-- Leaflet Configuration -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
@@ -354,6 +354,74 @@
             padding: 1rem;
         }
 
+        /* Map Animations */
+        .radar-beam {
+            stroke-dasharray: 5, 10;
+            animation: dash 5s linear infinite;
+        }
+
+        @keyframes dash {
+            to {
+                stroke-dashoffset: -100;
+            }
+        }
+
+        .pulse-marker {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+            }
+
+            70% {
+                transform: scale(1);
+                box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+            }
+
+            100% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+            }
+        }
+
+        .map-legend {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            z-index: 1000;
+            background: rgba(10, 15, 30, 0.85);
+            border: 1px solid var(--border);
+            padding: 10px 15px;
+            border-radius: 6px;
+            backdrop-filter: blur(5px);
+            font-size: 0.7rem;
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            pointer-events: none;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            letter-spacing: 0.5px;
+        }
+
+        .legend-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            box-shadow: 0 0 5px currentColor;
+        }
+
         @media (max-width: 1024px) {
             .stats-grid {
                 display: none;
@@ -446,14 +514,32 @@
         </section>
 
         <!-- Map Area -->
-        <section class="glass-panel map-section">
-            <div class="panel-header">
+        <section class="glass-panel map-section" style="position: relative;">
+            <div class="panel-header"
+                style="position: absolute; top: 0; left: 0; right: 0; z-index: 1000; background: linear-gradient(180deg, rgba(5,8,15,0.9) 0%, rgba(5,8,15,0) 100%); border-bottom: none;">
                 <div class="panel-title">
                     <i data-lucide="globe" style="color: var(--accent); width: 1.25rem;"></i>
-                    GLOBAL THREAT TELEMETRY
+                    LIVE NETWORK TELEMETRY
                 </div>
             </div>
-            <div id="radar-map"></div>
+            <div id="radar-map" style="height: 100%; border-radius: 8px;"></div>
+
+            <!-- Map Legend -->
+            <div class="map-legend">
+                <div class="legend-item" style="color: #10b981;">
+                    <div class="legend-dot" style="background:#10b981;"></div> SECURE CONNECTION
+                </div>
+                <div class="legend-item" style="color: #f59e0b;">
+                    <div class="legend-dot" style="background:#f59e0b;"></div> COMMUNITY FLAGGED
+                </div>
+                <div class="legend-item" style="color: #6366f1;">
+                    <div class="legend-dot" style="background:#6366f1;"></div> BLOCKED / SHIELDED
+                </div>
+                <div class="legend-item" style="color: #ef4444;">
+                    <div class="legend-dot pulse-marker" style="background:#ef4444; width:8px; height:8px;"></div>
+                    ACTIVE THREAT (MALWARE)
+                </div>
+            </div>
         </section>
 
         <!-- DPI Terminal Area -->
@@ -557,6 +643,9 @@
                     <a href="/api/history/export?format=json"
                         style="background: transparent; border: 1px solid #6366f1; color: #6366f1; padding: 0.3rem 0.75rem; border-radius: 4px; font-size: 0.75rem; text-decoration: none; font-weight: 600;">⬇
                         JSON</a>
+                    <button onclick="addDemoEvents()"
+                        style="background: transparent; border: 1px solid #f59e0b; color: #f59e0b; padding: 0.3rem 0.75rem; border-radius: 4px; font-size: 0.75rem; cursor: pointer;">🧪
+                        DEMO</button>
                     <button onclick="clearHistory()"
                         style="background: transparent; border: 1px solid var(--danger); color: var(--danger); padding: 0.3rem 0.75rem; border-radius: 4px; font-size: 0.75rem; cursor: pointer;">🗑
                         CLEAR</button>
@@ -592,19 +681,20 @@
     </footer>
 
     <script>
-        // Init Icons
-        lucide.createIcons();
+        var radarBody = document.getElementById('radar-body');
+        var connCountElement = document.getElementById('conn-count');
+        var filterInput = document.getElementById('filter-input');
+        var vtStatusElement = document.getElementById('vt-status');
+        var packetStream = document.getElementById('packet-stream');
 
-        const radarBody = document.getElementById('radar-body');
-        const connCountElement = document.getElementById('conn-count');
-        const filterInput = document.getElementById('filter-input');
-        const vtStatusElement = document.getElementById('vt-status');
-        const packetStream = document.getElementById('packet-stream');
+        var allConnections = [];
+        var lastPacketsJson = ""; // For diffing
+        var map;
+        var severityColors = { critical: '#ef4444', high: '#f97316', medium: '#f59e0b', info: '#6366f1' };
+        var eventIcons = { THREAT: '🚨', BLOCKED: '🛡️', COMMUNITY_FLAG: '👥', DPI_ALERT: '⚠️' };
+        var mapMarkers = [];
 
-        let allConnections = [];
-        let lastPacketsJson = ""; // For diffing
-        let map;
-        let mapMarkers = [];
+        try { if (typeof lucide !== 'undefined') lucide.createIcons(); } catch (e) { }
 
         // Map Setup
         function initMap() {
@@ -673,8 +763,9 @@
                     statusClass = "status-community"; // Using yellow/orange for shield too
                 }
 
+                const rowId = `row-${conn.pid}-${conn.remote_ip.split('.').join('-')}`;
                 html += `
-                    <tr class="${rowClass}">
+                    <tr id="${rowId}" class="${rowClass}">
                         <td style="font-weight: 700; color: ${isThreat ? 'var(--danger)' : 'var(--accent)'}">${conn.process_name}</td>
                         <td style="color: var(--text-dim); font-size: 0.75rem;">${conn.pid}</td>
                         <td style="font-family: monospace;">${conn.remote_address}</td>
@@ -699,18 +790,52 @@
                 if (conn.lat && conn.lon) {
                     let color = isThreat ? '#ef4444' : '#10b981';
                     if (isCommunity && !isThreat) color = '#fbbf24'; // Warning Orange
+                    if (isShielded) color = '#6366f1';
 
-                    const marker = L.circleMarker([conn.lat, conn.lon], {
-                        radius: isThreat ? 8 : (isCommunity ? 7 : 5),
-                        fillColor: color,
-                        color: "#000",
-                        weight: 1,
-                        opacity: 1,
-                        fillOpacity: 0.8
+                    // 1. Draw connection line from "Home" [20,0] to Target
+                    const latlngs = [[20, 0], [conn.lat, conn.lon]];
+                    const polyline = L.polyline(latlngs, {
+                        color: color,
+                        weight: isThreat ? 2 : 1,
+                        opacity: 0.4,
+                        className: 'radar-beam'
                     }).addTo(map);
+                    mapMarkers.push(polyline);
+
+                    // 2. Draw Node Marker
+                    let iconHtml = `<div class="legend-dot" style="background:${color}; box-shadow: 0 0 8px ${color};"></div>`;
+                    let iconSize = [8, 8];
+                    let iconAnchor = [4, 4];
+
+                    if (isThreat) {
+                        iconHtml = `<div class="pulse-marker" style="background:${color};"></div>`;
+                        iconSize = [12, 12];
+                        iconAnchor = [6, 6];
+                    }
+
+                    const customIcon = L.divIcon({
+                        className: 'custom-div-icon',
+                        html: iconHtml,
+                        iconSize: iconSize,
+                        iconAnchor: iconAnchor
+                    });
+
+                    const marker = L.marker([conn.lat, conn.lon], { icon: customIcon }).addTo(map);
 
                     if (isThreat) marker.bindPopup(`<b style="color: red;">MALWARE: ${conn.process_name}</b>`);
-                    if (isCommunity) marker.bindPopup(`<b>COMMUNITY FLAG: ${conn.remote_ip}</b><br>Reports: ${conn.community_reports}`);
+                    if (isCommunity && !isThreat) marker.bindPopup(`<b>COMMUNITY FLAG: ${conn.remote_ip}</b><br>Reports: ${conn.community_reports}`);
+                    if (isShielded) marker.bindPopup(`<b style="color: #6366f1;">SHIELDED: ${conn.remote_ip}</b>`);
+
+                    marker.on('click', () => {
+                        const rowEl = document.getElementById(rowId);
+                        if (rowEl) {
+                            rowEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            rowEl.style.transition = 'background-color 0.3s';
+                            rowEl.style.backgroundColor = 'rgba(99, 102, 241, 0.4)';
+                            setTimeout(() => { rowEl.style.backgroundColor = ''; }, 2000);
+                        }
+                    });
+
                     mapMarkers.push(marker);
                 }
             });
@@ -729,8 +854,7 @@
             const shieldedCount = allConnections.filter(c => c.is_shielded).length;
             document.getElementById('shield-status').innerText = `${shieldedCount} BLOCKED`;
             document.getElementById('shield-status').style.color = shieldedCount > 0 ? '#6366f1' : 'var(--accent)';
-
-            lucide.createIcons();
+            try { if (typeof lucide !== 'undefined') lucide.createIcons(); } catch (e) { }
         }
 
         async function reportIP(ip) {
@@ -758,8 +882,6 @@
             updateRadar();
         }
 
-        const severityColors = { critical: '#ef4444', high: '#f97316', medium: '#f59e0b', info: '#6366f1' };
-        const eventIcons = { THREAT: '🚨', BLOCKED: '🛡️', COMMUNITY_FLAG: '👥', DPI_ALERT: '⚠️' };
 
         function toggleHistory() {
             const panel = document.getElementById('history-panel');
@@ -768,41 +890,52 @@
         }
 
         async function updateHistory() {
+            var SC = { critical: '#ef4444', high: '#f97316', medium: '#f59e0b', info: '#6366f1' };
+            var EI = { THREAT: '🚨', BLOCKED: '🛡️', COMMUNITY_FLAG: '👥', DPI_ALERT: '⚠️' };
+            var tbody = document.getElementById('history-body');
+            var statsEl = document.getElementById('history-stats');
+            var countEl = document.getElementById('history-count');
+            if (!tbody) { console.error('[History] Cannot find #history-body element'); return; }
+
+            var filterEl = document.getElementById('history-filter');
+            var filter = filterEl ? filterEl.value : '';
+            var url = '/api/history' + (filter ? '?type=' + filter : '') + '?_=' + Date.now();
+
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:1rem;color:#6366f1;">⏳ Loading...</td></tr>';
             try {
-                const filter = document.getElementById('history-filter').value;
-                const url = filter ? `/api/history?type=${filter}` : '/api/history';
-                const res = await fetch(url);
-                const json = await res.json();
-                if (json.status !== 'success') return;
-
-                // Update stats badge
-                const stats = json.stats;
-                const statsStr = Object.entries(stats).map(([k, v]) => `${eventIcons[k] || '•'} ${k}: ${v}`).join('  |  ');
-                document.getElementById('history-stats').textContent = statsStr;
-
-                const total = json.data.length;
-                document.getElementById('history-count').textContent = `📋 ${total} EVENTS`;
-
-                const tbody = document.getElementById('history-body');
-                if (json.data.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 2rem; color: var(--text-dim);">No events recorded yet. Detection events will appear here.</td></tr>';
+                var res = await fetch(url);
+                var json = await res.json();
+                if (json.status !== 'success') {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:1rem;color:#ef4444;">API error: ' + (json.message || 'Unknown') + '</td></tr>';
                     return;
                 }
-                let html = '';
-                json.data.forEach(ev => {
-                    const color = severityColors[ev.severity] || '#6366f1';
-                    const icon = eventIcons[ev.event_type] || '•';
-                    html += `<tr style="border-bottom: 1px solid rgba(255,255,255,0.04);">
-                        <td style="padding: 0.6rem 1rem; color: var(--text-dim); font-size: 0.7rem;">${ev.timestamp}</td>
-                        <td style="padding: 0.6rem 1rem;"><span style="background: ${color}22; color: ${color}; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 700;">${icon} ${ev.event_type}</span></td>
-                        <td style="padding: 0.6rem 1rem; font-family: monospace; color: ${color};">${ev.ip || '—'}</td>
-                        <td style="padding: 0.6rem 1rem; color: var(--text-main);">${ev.process || '—'}</td>
-                        <td style="padding: 0.6rem 1rem; color: var(--text-dim);">${ev.location || '—'}</td>
-                        <td style="padding: 0.6rem 1rem; color: var(--text-dim); font-size: 0.75rem;">${ev.detail || '—'}</td>
-                    </tr>`;
-                });
+                var events = json.data;
+                var stats = json.stats || {};
+                var statsStr = Object.keys(stats).map(function (k) { return (EI[k] || '•') + ' ' + k + ': ' + stats[k]; }).join(' | ');
+                if (statsEl) statsEl.textContent = statsStr;
+                if (countEl) countEl.textContent = '📋 ' + events.length + ' EVENTS';
+                if (events.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-dim);">No events recorded yet.</td></tr>';
+                    return;
+                }
+                var html = '';
+                for (var i = 0; i < events.length; i++) {
+                    var ev = events[i];
+                    var color = SC[ev.severity] || '#6366f1';
+                    var icon = EI[ev.event_type] || '•';
+                    html += '<tr style="border-bottom:1px solid rgba(255,255,255,0.04);">'
+                        + '<td style="padding:0.6rem 1rem;color:var(--text-dim);font-size:0.7rem;">' + (ev.timestamp || '—') + '</td>'
+                        + '<td style="padding:0.6rem 1rem;"><span style="background:' + color + '22;color:' + color + ';padding:2px 8px;border-radius:4px;font-size:0.7rem;font-weight:700;">' + icon + ' ' + ev.event_type + '</span></td>'
+                        + '<td style="padding:0.6rem 1rem;font-family:monospace;color:' + color + ';">' + (ev.ip || '—') + '</td>'
+                        + '<td style="padding:0.6rem 1rem;color:var(--text-main);">' + (ev.process || '—') + '</td>'
+                        + '<td style="padding:0.6rem 1rem;color:var(--text-dim);">' + (ev.location || '—') + '</td>'
+                        + '<td style="padding:0.6rem 1rem;color:var(--text-dim);font-size:0.75rem;">' + (ev.detail || '—') + '</td>'
+                        + '</tr>';
+                }
                 tbody.innerHTML = html;
-            } catch (e) { console.error("History error:", e); }
+            } catch (e) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:1rem;color:#ef4444;">JS Error: ' + e.message + '</td></tr>';
+            }
         }
 
         async function clearHistory() {
@@ -859,6 +992,11 @@
             } catch (e) {
                 alert("Test failed. Is the server running?");
             }
+        }
+
+        async function addDemoEvents() {
+            await fetch('/api/history/demo', { method: 'POST' });
+            await updateHistory();
         }
 
         async function toggleShield(ip, currentlyBlocked) {
@@ -943,12 +1081,10 @@
             }
         }
 
-        filterInput.addEventListener('input', renderUI);
-        initMap();
-        updateRadar();
-        updatePackets();
-        setInterval(updateRadar, 2000);
-        setInterval(updatePackets, 1000);
+        try { initMap(); } catch (e) { console.error("initMap error", e); }
+        try { filterInput.addEventListener('input', renderUI); } catch (e) { console.error("filter input error", e); }
+        try { updateRadar(); setInterval(updateRadar, 2000); } catch (e) { console.error("radar loop error", e); }
+        try { updatePackets(); setInterval(updatePackets, 1000); } catch (e) { console.error("packet loop error", e); }
     </script>
 </body>
 

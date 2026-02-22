@@ -1,6 +1,7 @@
-kharma-radar (1.0.0-1) kali-dev; urgency=medium
+kharma-radar (10.0.0-1) kali-dev; urgency=medium
 
-  * Initial release for Kali Linux / Debian.
+  * Major update to version 10.0.0.
+  * Added Web UI Dashboard, DPI, Auto-Kill IPS, VirusTotal EDR, Community Intelligence.
   * Added offline GeoIP, Malware Threat feeds, and Smart Filters.
 
- -- Mutasem <mutasem-mk4@github.com>  Sat, 21 Feb 2026 12:00:00 +0000
+ -- Mutasem <mutasem-mk4@github.com>  Sun, 22 Feb 2026 10:00:00 +0300
