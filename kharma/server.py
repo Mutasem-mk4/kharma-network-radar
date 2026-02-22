@@ -12,6 +12,7 @@ try:
     from kharma.vt_engine import VTEngine
     from kharma.community import CommunityIntel
     from kharma.dpi import DPIEngine
+    from kharma.shield import ShieldManager
 except ImportError:
     from scanner import NetworkScanner
     from geoip import GeoIPResolver
@@ -19,6 +20,7 @@ except ImportError:
     from vt_engine import VTEngine
     from community import CommunityIntel
     from dpi import DPIEngine
+    from shield import ShieldManager
 
 class KharmaWebServer:
     def __init__(self, host="127.0.0.1", port=8085):
@@ -47,6 +49,7 @@ class KharmaWebServer:
         self.community = CommunityIntel()
         self.dpi = DPIEngine()
         self.dpi.start() # Start background sniffing
+        self.shield = ShieldManager()
 
     def _setup_routes(self):
         @self.app.route('/')
@@ -126,9 +129,22 @@ class KharmaWebServer:
                         "is_malware": is_malware,
                         "is_community_flagged": is_community_flagged,
                         "community_reports": community_detail['reports'] if is_community_flagged else 0,
+                        "is_shielded": remote_ip in self.shield.list_blocked(),
                         "vt_malicious": vt_malicious,
                         "vt_total": vt_total
                     })
+
+                    # 5. Auto-Shielding Logic
+                    # Auto-block if: Reported > 3 times OR VT Malicious > 5 OR DPI high-severity
+                    if not remote_ip in self.shield.list_blocked():
+                        risk_score = 0
+                        if is_community_flagged and community_detail['reports'] >= 3: risk_score += 10
+                        if vt_malicious > 5: risk_score += 10
+                        if is_malware: risk_score += 10
+                        
+                        if risk_score >= 10:
+                            print(f"[SHIELD] AUTO-BLOCKING HIGH RISK IP: {remote_ip} (Score: {risk_score})")
+                            self.shield.block_ip(remote_ip)
 
                 return jsonify({"status": "success", "data": radar_data}), 200
 
@@ -168,6 +184,31 @@ class KharmaWebServer:
                     return jsonify({"status": "success", "message": f"IP {remote_ip} has been reported to the community."}), 200
                 else:
                     return jsonify({"status": "error", "message": "Failed to report IP."}), 500
+            except Exception as e:
+                return jsonify({"status": "error", "message": str(e)}), 500
+
+        @self.app.route('/api/shield', methods=['GET', 'POST', 'DELETE'])
+        def manage_shield():
+            """API Endpoint for manual firewall shield management."""
+            try:
+                if request.method == 'GET':
+                    blocked = self.shield.list_blocked()
+                    return jsonify({"status": "success", "data": blocked}), 200
+                
+                data = request.get_json()
+                ip = data.get('ip')
+                if not ip: return jsonify({"status": "error", "message": "No IP specified"}), 400
+
+                if request.method == 'POST':
+                    success = self.shield.block_ip(ip)
+                    message = f"IP {ip} is now SHIELDED." if success else "Failed to block IP. Check admin rights."
+                    return jsonify({"status": "success" if success else "error", "message": message}), 200 if success else 500
+                
+                if request.method == 'DELETE':
+                    success = self.shield.unblock_ip(ip)
+                    message = f"IP {ip} has been UNBLOCK." if success else "Failed to unblock IP."
+                    return jsonify({"status": "success" if success else "error", "message": message}), 200 if success else 500
+
             except Exception as e:
                 return jsonify({"status": "error", "message": str(e)}), 500
 

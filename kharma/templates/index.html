@@ -215,6 +215,18 @@
             background: rgba(251, 191, 36, 0.1);
         }
 
+        .shield-active {
+            border: 1px solid #6366f1 !important;
+            box-shadow: 0 0 15px rgba(99, 102, 241, 0.4) !important;
+            background: rgba(99, 102, 241, 0.05) !important;
+        }
+
+        .shield-btn-active {
+            color: #6366f1 !important;
+            border-color: #6366f1 !important;
+            background: rgba(99, 102, 241, 0.1) !important;
+        }
+
         .kill-btn {
             background: transparent;
             border: 1px solid var(--border);
@@ -383,6 +395,11 @@
                 <span class="stat-label">Community Score</span>
                 <span id="comm-status" class="stat-value" style="color: var(--accent);">0 FLAGS</span>
             </div>
+            <div class="stat-item">
+                <span class="stat-label">Automated Shield</span>
+                <span id="shield-status" class="stat-value" style="color: var(--accent); cursor: pointer;"
+                    onclick="toggleBlocklist()">0 BLOCKED</span>
+            </div>
         </div>
     </header>
 
@@ -440,6 +457,20 @@
             </div>
             <div id="packet-stream">
                 <!-- Packets injected here -->
+            </div>
+        </section>
+
+        <!-- Blocklist Management Panel -->
+        <section id="shield-panel" class="glass-panel" style="margin-top: 1.5rem; display: none;">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <i data-lucide="shield" style="color: #6366f1; width: 1.25rem;"></i>
+                    ACTIVE FIREWALL BLOCKLIST
+                </div>
+                <button class="kill-btn" onclick="toggleBlocklist()">CLOSE</button>
+            </div>
+            <div id="blocklist-content" style="padding: 1rem; color: var(--text-dim); font-size: 0.8rem;">
+                <!-- Blocked IPs list -->
             </div>
         </section>
     </main>
@@ -504,7 +535,8 @@
                 counter++;
                 const isThreat = conn.is_malware;
                 const isCommunity = conn.is_community_flagged;
-                const rowClass = isThreat ? "threat-row" : "row-hover";
+                const isShielded = conn.is_shielded;
+                const rowClass = `${isThreat ? "threat-row" : "row-hover"} ${isShielded ? 'shield-active' : ''}`;
 
                 let vtHtml = '<span style="color: var(--text-dim);">-</span>';
                 if (conn.vt_total > 0) {
@@ -524,6 +556,11 @@
                     statusClass = "status-community";
                 }
 
+                if (isShielded) {
+                    statusLabel = "SHIELDED (BLOCKED)";
+                    statusClass = "status-community"; // Using yellow/orange for shield too
+                }
+
                 html += `
                     <tr class="${rowClass}">
                         <td style="font-weight: 700; color: ${isThreat ? 'var(--danger)' : 'var(--accent)'}">${conn.process_name}</td>
@@ -533,6 +570,9 @@
                         <td style="text-align: center;">${vtHtml}</td>
                         <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
                         <td style="text-align: right; display: flex; gap: 8px; justify-content: flex-end;">
+                            <button class="kill-btn ${isShielded ? 'shield-btn-active' : ''}" onclick="toggleShield('${conn.remote_ip}', ${isShielded})" title="${isShielded ? 'Unblock IP' : 'Block IP via Firewall'}">
+                                <i data-lucide="shield${isShielded ? '-off' : ''}" style="width: 14px; height: 14px;"></i>
+                            </button>
                             <button class="kill-btn" onclick="reportIP('${conn.remote_ip}')" title="Report to Community">
                                 <i data-lucide="flag" style="width: 14px; height: 14px; color: #fbbf24;"></i>
                             </button>
@@ -573,6 +613,11 @@
             document.getElementById('comm-status').innerText = `${flaggedCount} FLAGS`;
             document.getElementById('comm-status').style.color = flaggedCount > 0 ? '#fbbf24' : 'var(--accent)';
 
+            // Update Shield count
+            const shieldedCount = allConnections.filter(c => c.is_shielded).length;
+            document.getElementById('shield-status').innerText = `${shieldedCount} BLOCKED`;
+            document.getElementById('shield-status').style.color = shieldedCount > 0 ? '#6366f1' : 'var(--accent)';
+
             lucide.createIcons();
         }
 
@@ -599,6 +644,57 @@
             const data = await res.json();
             alert(data.message);
             updateRadar();
+        }
+
+        async function toggleShield(ip, currentlyBlocked) {
+            const method = currentlyBlocked ? 'DELETE' : 'POST';
+            const action = currentlyBlocked ? 'UNBLOCK' : 'BLOCK';
+            if (!confirm(`CONFIRM FIREWALL ${action}:\nTargets: ${ip}\nReason: Malicious Activity Detected.`)) return;
+
+            try {
+                const res = await fetch('/api/shield', {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ip: ip })
+                });
+                const data = await res.json();
+                alert(data.message);
+                updateRadar();
+                updateBlocklist();
+            } catch (e) {
+                alert("Shield operation failed. Ensure you have Admin rights.");
+            }
+        }
+
+        async function updateBlocklist() {
+            try {
+                const res = await fetch('/api/shield');
+                const json = await res.json();
+                if (json.status === 'success') {
+                    const container = document.getElementById('blocklist-content');
+                    if (json.data.length === 0) {
+                        container.innerHTML = "No IPs represent a block condition.";
+                        return;
+                    }
+                    let html = '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px;">';
+                    json.data.forEach(ip => {
+                        html += `
+                            <div style="background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); padding: 5px 10px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
+                                <span>${ip}</span>
+                                <button onclick="toggleShield('${ip}', true)" style="background: none; border: none; color: var(--danger); cursor: pointer;">×</button>
+                            </div>
+                        `;
+                    });
+                    html += '</div>';
+                    container.innerHTML = html;
+                }
+            } catch (e) { }
+        }
+
+        function toggleBlocklist() {
+            const panel = document.getElementById('shield-panel');
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+            if (panel.style.display === 'block') updateBlocklist();
         }
 
         // DPI Logic: Poll every 1 second
