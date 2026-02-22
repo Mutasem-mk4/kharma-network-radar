@@ -25,9 +25,15 @@ Traditional network monitoring on Linux/Windows requires manually chaining `nets
 ## 🔥 Elite Features
 
 - 🌐 **Web UI Dashboard (New in v5.0):** Spawns a hidden Flask backend serving a beautiful, dark-themed HTML/JS Dashboard. View live connections, Geo-locations, and kill malware right from your browser.
+- 📡 **Real-Time Visualizer (v10.1):** Live bandwidth tracking per-process and dynamic Chart.js throughput visualization.
+- 🌍 **Elite Geo-Fencing (v10.2):** Reactive nation-blocking. Automatically firewall-block entire countries from the dashboard.
+- 🔍 **Threat Hunting Mode:** Deep forensic process deep-dives. Extract binary strings, file handles, and metadata with one click.
+- 🤖 **AI Behavioral Profiling:** Learning-based anomaly detection. Flags volume spikes and unusual geographic connections using the new `BehaviorEngine`.
+- 🐝 **Multi-Node Swarm (v10.5):** Federate multiple Kharma nodes into a single 'Hive' view for global network oversight.
 - 🦠 **Enterprise EDR (VirusTotal):** Natively extracts the physical binary path of connected processes (`.exe` / ELF), computes its SHA-256 hash locally, and verifies it against VirusTotal limits.
 - ⚔️ **Active Defense (Auto-Kill IPS):** Instantly terminates any process the millisecond it initiates a connection to a known malicious IP (Firehol blocklist) or a flagged binary hash.
-- 📡 **Offline Geo-IP Engine:** Built-in `MaxMind GeoLite2` database ensures **0ms lag** when resolving IP coordinates. No external rate limits, 100% privacy.
+- 📄 **Forensic Snapshots:** Generate professional, printable incident reports for any suspicious process activity.
+- 🛰️ **Offline Geo-IP Engine:** Built-in `MaxMind GeoLite2` database ensures **0ms lag** when resolving IP coordinates. No external rate limits, 100% privacy.
 - 🗄️ **Time Machine Logger:** Silently records all established connections to a local SQLite database (`~/.kharma/kharma_history.db`) for post-incident forensics.
 - 🤖 **Background Daemon & Telegram Alerts:** Run `kharma daemon start` to deploy a headless background worker that watches traffic quietly and pushes critical breach alerts dynamically to Telegram. 
 
