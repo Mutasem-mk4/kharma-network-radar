@@ -74,7 +74,6 @@ HEADER = r"""
  | . \ |  _  |/ ___ \|  _ <| |  | |/ ___ \ 
  |_|\_\|_| |_/_/   \_\_| \_\_|  |_/_/   \_\ [/bold cyan]
 [bold white]   >> THE OVER-WATCH NETWORK MONITOR <<[/bold white]
-[dim]       Built for Cyber Defense and Global Intel.[/dim]
 """
 
 @click.group(invoke_without_command=True, epilog=f"""
