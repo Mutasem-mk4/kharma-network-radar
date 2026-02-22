@@ -6,12 +6,12 @@ with open("README.md", "r", encoding="utf-8") as fh:
 setup(
     name="kharma-radar",
     version="10.0.2",
-    author="Mutasem (@Mutasem-mk4)",
+    author="Mutasem-mk4",
     author_email="example@example.com",
     description="The Over-Watch Network Monitor: An elite CLI tool mapping active connections to process IDs, geographical locations, and threat intelligence.",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/Mutaz/kharma-network-radar",
+    url="https://github.com/Mutasem-mk4/kharma-network-radar",
     packages=find_packages(),
     include_package_data=True,
     classifiers=[
