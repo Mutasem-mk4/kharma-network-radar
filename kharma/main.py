@@ -68,10 +68,10 @@ click.rich_click.OPTION_GROUPS = {
 
 HEADER = r"""
 [bold cyan]
- _  _ _  _  _   
- |_/  |__| /_\  
- | \  |  |/   \ [/bold cyan]
-[bold white]>> LIVE NETWORK RADAR <<[/bold white]
+ _  _
+|_/ 
+| \ [/bold cyan] [bold white]KHARMA[/bold white]
+[dim]Live Network Radar[/dim]
 """
 
 @click.group(invoke_without_command=True, epilog=f"""
