@@ -68,22 +68,21 @@ click.rich_click.OPTION_GROUPS = {
 
 HEADER = r"""
 [bold cyan]
- _  _ _  _ ____ _  _ ____ 
- |_/  |__| |__| |\/| |__| 
- | \  |  | |  | |  | |  | [/bold cyan]
-[bold white] >> THE OVER-WATCH NETWORK MONITOR <<[/bold white]
+ _  _ _  _  _   
+ |_/  |__| /_\  
+ | \  |  |/   \ [/bold cyan]
+[bold white]>> LIVE NETWORK RADAR <<[/bold white]
 """
 
 @click.group(invoke_without_command=True, epilog=f"""
 {HEADER}
-[bold underline]🚀 Quick Start Console[/bold underline]
+[bold underline]🚀 Quick Start[/bold underline]
+[cyan]• Radar:[/cyan] [white]kharma run[/white]
+[cyan]• Web:[/cyan]   [white]kharma web[/white]
+[cyan]• Shield:[/cyan][white]kharma run --protect[/white]
+[cyan]• Silent:[/cyan][white]kharma daemon start[/white]
 
-  [cyan]• Live Radar:[/cyan]      [white]kharma run[/white]
-  [cyan]• Web Dashboard:[/cyan]  [white]kharma web[/white]
-  [cyan]• Auto-Protect:[/cyan]   [white]kharma run --protect[/white]
-  [cyan]• Background:[/cyan]     [white]kharma daemon start[/white]
-
-[dim italic]Run 'kharma [COMMAND] --help' for tactical documentation on any module.[/dim italic]
+[dim italic]Run 'kharma [CMD] --help'[/dim italic]
 """)
 @click.pass_context
 def cli(ctx):
