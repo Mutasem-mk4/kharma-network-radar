@@ -11,12 +11,14 @@ try:
     from kharma.threat import ThreatIntelligence
     from kharma.vt_engine import VTEngine
     from kharma.community import CommunityIntel
+    from kharma.dpi import DPIEngine
 except ImportError:
     from scanner import NetworkScanner
     from geoip import GeoIPResolver
     from threat import ThreatIntelligence
     from vt_engine import VTEngine
     from community import CommunityIntel
+    from dpi import DPIEngine
 
 class KharmaWebServer:
     def __init__(self, host="127.0.0.1", port=8085):
@@ -43,6 +45,8 @@ class KharmaWebServer:
         self.intel = ThreatIntelligence()
         self.vt_engine = VTEngine()
         self.community = CommunityIntel()
+        self.dpi = DPIEngine()
+        self.dpi.start() # Start background sniffing
 
     def _setup_routes(self):
         @self.app.route('/')
@@ -164,6 +168,15 @@ class KharmaWebServer:
                     return jsonify({"status": "success", "message": f"IP {remote_ip} has been reported to the community."}), 200
                 else:
                     return jsonify({"status": "error", "message": "Failed to report IP."}), 500
+            except Exception as e:
+                return jsonify({"status": "error", "message": str(e)}), 500
+
+        @self.app.route('/api/packets', methods=['GET'])
+        def get_packets():
+            """API Endpoint for the Live Packet Telemetry stream."""
+            try:
+                packets = self.dpi.get_packets()
+                return jsonify({"status": "success", "data": packets}), 200
             except Exception as e:
                 return jsonify({"status": "error", "message": str(e)}), 500
 

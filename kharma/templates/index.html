@@ -233,8 +233,63 @@
 
         /* Map Section */
         .map-section {
-            height: 400px;
+            height: 350px;
             overflow: hidden;
+        }
+
+        /* DPI Terminal Section */
+        .dpi-section {
+            height: 250px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        #packet-stream {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            font-size: 0.7rem;
+            line-height: 1.4;
+            background: rgba(0, 0, 0, 0.4);
+            border-bottom-left-radius: 0.75rem;
+            border-bottom-right-radius: 0.75rem;
+        }
+
+        .packet-line {
+            display: flex;
+            gap: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 0.2rem 0;
+            white-space: nowrap;
+        }
+
+        .packet-time {
+            color: var(--text-dim);
+            min-width: 65px;
+        }
+
+        .packet-src-dst {
+            color: #60a5fa;
+            min-width: 200px;
+        }
+
+        .packet-proto {
+            color: var(--accent);
+            font-weight: bold;
+            min-width: 50px;
+        }
+
+        .packet-info {
+            color: var(--text-main);
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .packet-alert {
+            color: var(--danger);
+            font-weight: bold;
         }
 
         #radar-map {
@@ -373,6 +428,20 @@
             </div>
             <div id="radar-map"></div>
         </section>
+
+        <!-- DPI Terminal Area -->
+        <section class="glass-panel dpi-section">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <i data-lucide="terminal" style="color: var(--accent); width: 1.25rem;"></i>
+                    DEEP PACKET INSPECTION (REAL-TIME STREAM)
+                </div>
+                <div style="font-size: 0.65rem; color: var(--text-dim);">SNIFFER: ACTIVE | BUFFER: 50/50</div>
+            </div>
+            <div id="packet-stream">
+                <!-- Packets injected here -->
+            </div>
+        </section>
     </main>
 
     <footer>
@@ -387,8 +456,10 @@
         const connCountElement = document.getElementById('conn-count');
         const filterInput = document.getElementById('filter-input');
         const vtStatusElement = document.getElementById('vt-status');
+        const packetStream = document.getElementById('packet-stream');
 
         let allConnections = [];
+        let lastPacketsJson = ""; // For diffing
         let map;
         let mapMarkers = [];
 
@@ -530,10 +601,43 @@
             updateRadar();
         }
 
+        // DPI Logic: Poll every 1 second
+        async function updatePackets() {
+            try {
+                const response = await fetch('/api/packets');
+                const json = await response.json();
+
+                // Only update if data changed
+                const currentJson = JSON.stringify(json.data);
+                if (currentJson === lastPacketsJson) return;
+                lastPacketsJson = currentJson;
+
+                if (json.status === 'success') {
+                    let html = '';
+                    json.data.reverse().forEach(pkt => {
+                        const alertHtml = pkt.alert ? `<span class="packet-alert blink"> [ALERT: ${pkt.alert}]</span>` : '';
+                        html += `
+                            <div class="packet-line">
+                                <span class="packet-time">${pkt.time}</span>
+                                <span class="packet-src-dst">${pkt.src} ➔ ${pkt.dst}</span>
+                                <span class="packet-proto">${pkt.proto}</span>
+                                <span class="packet-info">${pkt.info}${alertHtml}</span>
+                            </div>
+                        `;
+                    });
+                    packetStream.innerHTML = html;
+                }
+            } catch (e) {
+                console.error("DPI Stream Error:", e);
+            }
+        }
+
         filterInput.addEventListener('input', renderUI);
         initMap();
         updateRadar();
+        updatePackets();
         setInterval(updateRadar, 2000);
+        setInterval(updatePackets, 1000);
     </script>
 </body>
 
