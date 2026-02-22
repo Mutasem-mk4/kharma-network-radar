@@ -7,7 +7,7 @@
     <img src="https://img.shields.io/pypi/dm/kharma-radar?color=blue&style=flat-square" alt="Downloads" />
     <img src="https://img.shields.io/badge/Python-3.8+-blue?style=flat-square&logo=python" alt="Python 3.8+" />
     <img src="https://img.shields.io/github/license/Mutasem-mk4/kharma-network-radar?color=purple&style=flat-square" alt="License MIT" />
-    <img src="https://img.shields.io/github/actions/workflow/status/Mutasem-mk4/kharma-network-radar/publish.yml?branch=master&style=flat-square&label=Security%20Publish" alt="Security Publish" />
+    <img src="https://img.shields.io/github/actions/workflow/status/Mutasem-mk4/kharma-network-radar/publish.yml?style=flat-square&label=Security%20Publish" alt="Security Publish" />
   </p>
   <p><i>An elite cybersecurity CLI & Full-Stack Web tool that maps active connections to process IDs, geographical locations, and global threat intelligence feeds in real-time.</i></p>
 </div>
