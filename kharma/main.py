@@ -66,13 +66,13 @@ click.rich_click.OPTION_GROUPS = {
     ]
 }
 
-HEADER = """
+HEADER = r"""
 [bold cyan]
-  _  ___  _   _   _   ____  __  __    _    
- | |/ / || | | | | | |  _ \|  \/  |  / \   
- | ' /| || |_| | | | | |_) | |\/| | / _ \  
- | . \|__   _| |_| | |  _ <| |  | |/ ___ \ 
- |_|\_\  |_|  \___/  |_| \_\_|  |_/_/   \_\ [/bold cyan]
+  _  _  _   _    _    ____  __  __    _    
+ | |/ /| | | |  / \  |  _ \|  \/  |  / \   
+ | ' / | |_| | / _ \ | |_) | |\/| | / _ \  
+ | . \ |  _  |/ ___ \|  _ <| |  | |/ ___ \ 
+ |_|\_\|_| |_/_/   \_\_| \_\_|  |_/_/   \_\ [/bold cyan]
 [bold white]   >> THE OVER-WATCH NETWORK MONITOR <<[/bold white]
 [dim]       Built for Cyber Defense and Global Intel.[/dim]
 """
