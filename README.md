@@ -33,12 +33,20 @@ Traditional network monitoring on Linux/Windows requires manually chaining `nets
 
 ---
 
+## ⚙️ Prerequisites
+
+Kharma requires **Python 3.8 or higher** to run. 
+
+> [!IMPORTANT]
+> **Windows Users:** During Python installation, you **MUST** check the box that says **"Add Python to PATH"**. If you skip this, your computer won't recognize the `pip` or `kharma` commands.
+
 ## 🚀 Installation
 
-### Option 1: Install via PyPI (Recommended for Python Users)
+### Option 1: Install via PyPI (Recommended)
 ```bash
 pip install kharma-radar
 ```
+*If `pip` is not recognized, try:* `python -m pip install kharma-radar`
 
 ### Option 2: Standalone Windows Executable
 Don't have Python? Download the pre-compiled `kharma.exe` from the [Releases tab](#) and run it anywhere. Zero dependencies required.
@@ -77,6 +85,21 @@ Kharma is designed for maximum performance, minimal dependencies, and absolute o
 - **Frontend:** `rich` (Terminal TUI) & `Tailwind.css + JavaScript` (Web UI).
 - **Backend Core:** `psutil` (Socket Hooks), `Flask` (REST API).
 - **Persistence:** Local `SQLite` for logging and `.mmdb` for GeoIP lookups.
+
+---
+
+---
+
+## 🛠️ Troubleshooting
+
+### 1. "'pip' or 'kharma' is not recognized..." (Windows)
+This means Python is not in your System PATH.
+- **Fix:** Re-install Python and check **"Add Python to PATH"** in the installer.
+- **Quick Workaround:** Use `python -m pip install kharma-radar` and `python -m kharma`.
+
+### 2. "Python was not found..."
+You might have the "Windows App Execution Aliases" enabled.
+- **Fix:** Go to **Manage App Execution Aliases** in Windows settings and turn **OFF** the aliases for `python.exe` and `python3.exe`.
 
 ---
 
