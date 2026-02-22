@@ -33,23 +33,24 @@ Traditional network monitoring on Linux/Windows requires manually chaining `nets
 
 ---
 
-## ⚙️ Prerequisites
+## 🚀 Installation & Setup
 
-Kharma requires **Python 3.8 or higher** to run. 
+### 🆕 Option 1: Standalone Portable EXE (Easiest)
+Download the zero-dependency executable. No Python installation required!
+- **Download:** [kharma.exe (v10.1.9)](https://github.com/Mutasem-mk4/kharma-network-radar/releases)
+- **Usage:** Just double-click to run or use it from the command line.
 
-> [!IMPORTANT]
-> **Windows Users:** During Python installation, you **MUST** check the box that says **"Add Python to PATH"**. If you skip this, your computer won't recognize the `pip` or `kharma` commands.
+### 🆕 Option 2: Smart Windows Installer (Automated)
+Don't have Python? Our script will set it up for you using `winget`.
+1. Download [setup_windows.bat](file:///c:/Users/User/.gemini/antigravity/scratch/kharma/setup_windows.bat).
+2. Right-click and **Run as Administrator**.
+3. It will automatically install Python (if missing) and all dependencies.
 
-## 🚀 Installation
-
-### Option 1: Install via PyPI (Recommended)
+### Option 3: Standard PyPI Install (For Developers)
 ```bash
 pip install kharma-radar
 ```
 *If `pip` is not recognized, try:* `python -m pip install kharma-radar`
-
-### Option 2: Standalone Windows Executable
-Don't have Python? Download the pre-compiled `kharma.exe` from the [Releases tab](#) and run it anywhere. Zero dependencies required.
 
 ---
 
