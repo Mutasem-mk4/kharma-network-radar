@@ -473,10 +473,55 @@
                 <!-- Blocked IPs list -->
             </div>
         </section>
+
+        <!-- Guardian Bot Settings Panel -->
+        <section id="guardian-panel" class="glass-panel" style="margin-top: 1.5rem; display: none;">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <i data-lucide="bot" style="color: #a78bfa; width: 1.25rem;"></i>
+                    GUARDIAN BOT — EXTERNAL ALERTING
+                </div>
+                <button class="kill-btn" onclick="toggleGuardian()">CLOSE</button>
+            </div>
+            <div style="padding: 1.5rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                <div>
+                    <label
+                        style="display: block; font-size: 0.7rem; color: var(--text-dim); margin-bottom: 0.3rem; font-weight: 600;">TELEGRAM
+                        BOT TOKEN</label>
+                    <input type="text" id="tg-token" placeholder="e.g. 1234567890:ABCdef..."
+                        style="width: 100%; background: rgba(0,0,0,0.4); border: 1px solid var(--border); color: var(--text-main); padding: 0.5rem 0.75rem; border-radius: 6px; font-size: 0.8rem;">
+                </div>
+                <div>
+                    <label
+                        style="display: block; font-size: 0.7rem; color: var(--text-dim); margin-bottom: 0.3rem; font-weight: 600;">TELEGRAM
+                        CHAT ID</label>
+                    <input type="text" id="tg-chat-id" placeholder="e.g. -1001234567890"
+                        style="width: 100%; background: rgba(0,0,0,0.4); border: 1px solid var(--border); color: var(--text-main); padding: 0.5rem 0.75rem; border-radius: 6px; font-size: 0.8rem;">
+                </div>
+                <div style="grid-column: 1 / -1;">
+                    <label
+                        style="display: block; font-size: 0.7rem; color: var(--text-dim); margin-bottom: 0.3rem; font-weight: 600;">DISCORD
+                        WEBHOOK URL</label>
+                    <input type="text" id="discord-webhook" placeholder="https://discord.com/api/webhooks/..."
+                        style="width: 100%; background: rgba(0,0,0,0.4); border: 1px solid var(--border); color: var(--text-main); padding: 0.5rem 0.75rem; border-radius: 6px; font-size: 0.8rem;">
+                </div>
+                <div style="grid-column: 1 / -1; display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+                    <label style="display: flex; gap: 0.4rem; align-items: center; font-size: 0.8rem;"><input
+                            type="checkbox" id="alert-threat" checked> Alert on Threat</label>
+                    <label style="display: flex; gap: 0.4rem; align-items: center; font-size: 0.8rem;"><input
+                            type="checkbox" id="alert-block" checked> Alert on Block</label>
+                    <label style="display: flex; gap: 0.4rem; align-items: center; font-size: 0.8rem;"><input
+                            type="checkbox" id="alert-dpi" checked> Alert on DPI</label>
+                    <button onclick="saveGuardianSettings()"
+                        style="margin-left: auto; background: linear-gradient(135deg, #6366f1, #a78bfa); border: none; color: white; padding: 0.5rem 1.5rem; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 600;">SAVE
+                        & ACTIVATE</button>
+                </div>
+            </div>
+        </section>
     </main>
 
     <footer>
-        KHARMA RADAR v5.1.2 &copy; 2026 INTERNAL ENDPOINT MONITOR. ALL SENSORS ACTIVE.
+        KHARMA RADAR v9.0.0 &copy; 2026 INTERNAL ENDPOINT MONITOR. ALL SENSORS ACTIVE.
     </footer>
 
     <script>
@@ -644,6 +689,44 @@
             const data = await res.json();
             alert(data.message);
             updateRadar();
+        }
+
+        async function toggleGuardian() {
+            const panel = document.getElementById('guardian-panel');
+            if (panel.style.display === 'none') {
+                panel.style.display = 'block';
+                // Load existing settings
+                const res = await fetch('/api/settings');
+                const json = await res.json();
+                if (json.status === 'success') {
+                    document.getElementById('tg-token').value = json.data.telegram_bot_token || '';
+                    document.getElementById('tg-chat-id').value = json.data.telegram_chat_id || '';
+                    document.getElementById('discord-webhook').value = json.data.discord_webhook_url || '';
+                    document.getElementById('alert-threat').checked = json.data.alert_on_threat !== false;
+                    document.getElementById('alert-block').checked = json.data.alert_on_block !== false;
+                    document.getElementById('alert-dpi').checked = json.data.alert_on_dpi !== false;
+                }
+            } else {
+                panel.style.display = 'none';
+            }
+        }
+
+        async function saveGuardianSettings() {
+            const config = {
+                telegram_bot_token: document.getElementById('tg-token').value,
+                telegram_chat_id: document.getElementById('tg-chat-id').value,
+                discord_webhook_url: document.getElementById('discord-webhook').value,
+                alert_on_threat: document.getElementById('alert-threat').checked,
+                alert_on_block: document.getElementById('alert-block').checked,
+                alert_on_dpi: document.getElementById('alert-dpi').checked,
+            };
+            const res = await fetch('/api/settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(config)
+            });
+            const data = await res.json();
+            alert(data.message);
         }
 
         async function toggleShield(ip, currentlyBlocked) {

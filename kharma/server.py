@@ -13,6 +13,7 @@ try:
     from kharma.community import CommunityIntel
     from kharma.dpi import DPIEngine
     from kharma.shield import ShieldManager
+    from kharma.guardian import GuardianBot
 except ImportError:
     from scanner import NetworkScanner
     from geoip import GeoIPResolver
@@ -21,6 +22,7 @@ except ImportError:
     from community import CommunityIntel
     from dpi import DPIEngine
     from shield import ShieldManager
+    from guardian import GuardianBot
 
 class KharmaWebServer:
     def __init__(self, host="127.0.0.1", port=8085):
@@ -50,6 +52,7 @@ class KharmaWebServer:
         self.dpi = DPIEngine()
         self.dpi.start() # Start background sniffing
         self.shield = ShieldManager()
+        self.guardian = GuardianBot()
 
     def _setup_routes(self):
         @self.app.route('/')
@@ -134,9 +137,8 @@ class KharmaWebServer:
                         "vt_total": vt_total
                     })
 
-                    # 5. Auto-Shielding Logic
-                    # Auto-block if: Reported > 3 times OR VT Malicious > 5 OR DPI high-severity
-                    if not remote_ip in self.shield.list_blocked():
+                    # 5. Auto-Shielding + Guardian Alert Logic
+                    if remote_ip not in self.shield.list_blocked():
                         risk_score = 0
                         if is_community_flagged and community_detail['reports'] >= 3: risk_score += 10
                         if vt_malicious > 5: risk_score += 10
@@ -145,6 +147,11 @@ class KharmaWebServer:
                         if risk_score >= 10:
                             print(f"[SHIELD] AUTO-BLOCKING HIGH RISK IP: {remote_ip} (Score: {risk_score})")
                             self.shield.block_ip(remote_ip)
+                            self.guardian.alert_blocked(remote_ip, reason=f"Auto-Shield (Score: {risk_score})")
+
+                    # 6. Guardian Threat Alert
+                    if is_malware:
+                        self.guardian.alert_threat(remote_ip, conn.get('name', 'Unknown'))
 
                 return jsonify({"status": "success", "data": radar_data}), 200
 
@@ -218,6 +225,20 @@ class KharmaWebServer:
             try:
                 packets = self.dpi.get_packets()
                 return jsonify({"status": "success", "data": packets}), 200
+            except Exception as e:
+                return jsonify({"status": "error", "message": str(e)}), 500
+
+        @self.app.route('/api/settings', methods=['GET', 'POST'])
+        def manage_settings():
+            """API Endpoint to get/update Guardian Bot configuration."""
+            try:
+                if request.method == 'GET':
+                    config = self.guardian.get_config()
+                    return jsonify({"status": "success", "data": config}), 200
+                
+                data = request.get_json()
+                self.guardian.save_config(data)
+                return jsonify({"status": "success", "message": "Settings saved. Guardian Bot activated."}), 200
             except Exception as e:
                 return jsonify({"status": "error", "message": str(e)}), 500
 
