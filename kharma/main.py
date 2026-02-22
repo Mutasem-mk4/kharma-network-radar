@@ -80,27 +80,25 @@ HEADER = r"""
 [bold white]   >> ELITE NETWORK MONITOR <<[/bold white]
 """
 
-FOOTER = f"""\b
-{HEADER}
+FOOTER = f"""
 [bold underline]🚀 Tactical Quick Start[/bold underline]
-
 [cyan]• Radar:[/cyan]   [white]kharma run[/white]
 [cyan]• Web:[/cyan]     [white]kharma web[/white]
 [cyan]• Shield:[/cyan]  [white]kharma run --protect[/white]
 [cyan]• Silent:[/cyan]  [white]kharma daemon start[/white]
-
-[dim italic]Run 'kharma [CMD] --help' for docs.[/dim italic]
 """
 
 @click.group(invoke_without_command=True, epilog=FOOTER)
 @click.pass_context
 def cli(ctx):
-    """
-    [bold cyan]Kharma - The Over-Watch Network Monitor[/bold cyan]
-    
-    Reveals hidden connections and bad karma processes on your system.
-    Built for active defense, forensics, and zero-latency geolocation.
-    """
+    f"""\b
+{HEADER}
+[bold white]   >> ELITE NETWORK MONITOR <<[/bold white]
+
+[bold cyan]KHARMA ENGINE v10.1.6[/bold cyan]
+Reveals hidden connections and bad karma processes.
+Built for active defense and zero-latency forensics.
+"""
     if ctx.invoked_subcommand is None:
         run_radar()
 
