@@ -1,28 +1,39 @@
 import threading
-from scapy.all import sniff, IP, TCP, UDP, DNS, Raw
 from collections import deque
 import time
+
+# Try to import scapy — requires Npcap on Windows
+try:
+    from scapy.all import sniff, IP, TCP, UDP, DNS, Raw
+    SCAPY_AVAILABLE = True
+except Exception:
+    SCAPY_AVAILABLE = False
 
 class DPIEngine:
     """
     Advanced Deep Packet Inspection (DPI) Engine for Kharma.
-    Sniffs real-time traffic to identify protocols and detect potentially malicious payloads.
+    Requires Npcap (Windows) or libpcap (Linux) to be installed.
+    Falls back gracefully if the driver is not available.
     """
     def __init__(self, max_buffer=50):
         self.packet_buffer = deque(maxlen=max_buffer)
         self.is_running = False
         self.thread = None
+        self.available = SCAPY_AVAILABLE
         
         # Signatures for common web attacks
         self.signatures = {
             "SQL Injection": [b"SELECT", b"UNION", b"INSERT", b"UPDATE", b"DELETE", b"DROP TABLE"],
             "XSS / Web Shell": [b"<script>", b"eval(", b"base64_decode", b"system(", b"passthru("],
-            "RFI / Path Traversal": [b"etc/passwd", b"boot.ini", b"http://", b"https://"],
+            "RFI / Path Traversal": [b"etc/passwd", b"boot.ini"],
             "Suspicious String": [b"cmd.exe", b"/bin/sh", b"powershell"]
         }
 
     def start(self):
-        """Starts the packet sniffer in a background thread."""
+        """Starts the packet sniffer in a background thread (requires Npcap on Windows)."""
+        if not self.available:
+            print("[DPI] Npcap/libpcap not found. Packet sniffing disabled. Install Npcap from https://npcap.com")
+            return
         if not self.is_running:
             self.is_running = True
             self.thread = threading.Thread(target=self._sniffer_loop, daemon=True)
@@ -34,9 +45,13 @@ class DPIEngine:
 
     def _sniffer_loop(self):
         """Internal loop to capture packets using Scapy."""
-        # Scapy's sniff is blocking, so we use a small timeout to check the stop flag
-        while self.is_running:
-            sniff(prn=self._process_packet, count=5, timeout=1, store=0)
+        try:
+            while self.is_running:
+                sniff(prn=self._process_packet, count=5, timeout=1, store=0)
+        except Exception as e:
+            print(f"[DPI] Sniffer stopped: {e}")
+            self.is_running = False
+            self.available = False
 
     def _process_packet(self, pkt):
         """Entry point for every captured packet."""

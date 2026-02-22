@@ -14,6 +14,7 @@ try:
     from kharma.dpi import DPIEngine
     from kharma.shield import ShieldManager
     from kharma.guardian import GuardianBot
+    from kharma.forensics import ForensicsDB
 except ImportError:
     from scanner import NetworkScanner
     from geoip import GeoIPResolver
@@ -23,6 +24,7 @@ except ImportError:
     from dpi import DPIEngine
     from shield import ShieldManager
     from guardian import GuardianBot
+    from forensics import ForensicsDB
 
 class KharmaWebServer:
     def __init__(self, host="127.0.0.1", port=8085):
@@ -53,6 +55,7 @@ class KharmaWebServer:
         self.dpi.start() # Start background sniffing
         self.shield = ShieldManager()
         self.guardian = GuardianBot()
+        self.forensics = ForensicsDB()
 
     def _setup_routes(self):
         @self.app.route('/')
@@ -137,7 +140,7 @@ class KharmaWebServer:
                         "vt_total": vt_total
                     })
 
-                    # 5. Auto-Shielding + Guardian Alert Logic
+                    # 5. Auto-Shielding + Guardian + Forensics
                     if remote_ip not in self.shield.list_blocked():
                         risk_score = 0
                         if is_community_flagged and community_detail['reports'] >= 3: risk_score += 10
@@ -148,10 +151,37 @@ class KharmaWebServer:
                             print(f"[SHIELD] AUTO-BLOCKING HIGH RISK IP: {remote_ip} (Score: {risk_score})")
                             self.shield.block_ip(remote_ip)
                             self.guardian.alert_blocked(remote_ip, reason=f"Auto-Shield (Score: {risk_score})")
+                            self.forensics.log(
+                                event_type="BLOCKED",
+                                ip=remote_ip,
+                                process=conn.get('name', 'Unknown'),
+                                location=location,
+                                detail=f"Risk Score: {risk_score}",
+                                severity="high"
+                            )
 
-                    # 6. Guardian Threat Alert
+                    # 6. Guardian + Forensics Threat Logging
                     if is_malware:
                         self.guardian.alert_threat(remote_ip, conn.get('name', 'Unknown'))
+                        self.forensics.log(
+                            event_type="THREAT",
+                            ip=remote_ip,
+                            process=conn.get('name', 'Unknown'),
+                            location=location,
+                            detail=f"VT:{vt_malicious}/{vt_total}" if vt_malicious >= 0 else "Threat Intel Match",
+                            severity="critical"
+                        )
+
+                    # 7. Community Flag Logging
+                    if is_community_flagged and community_detail['reports'] >= 3:
+                        self.forensics.log(
+                            event_type="COMMUNITY_FLAG",
+                            ip=remote_ip,
+                            process=conn.get('name', 'Unknown'),
+                            location=location,
+                            detail=f"{community_detail['reports']} community reports",
+                            severity="medium"
+                        )
 
                 return jsonify({"status": "success", "data": radar_data}), 200
 
@@ -239,6 +269,50 @@ class KharmaWebServer:
                 data = request.get_json()
                 self.guardian.save_config(data)
                 return jsonify({"status": "success", "message": "Settings saved. Guardian Bot activated."}), 200
+            except Exception as e:
+                return jsonify({"status": "error", "message": str(e)}), 500
+
+        @self.app.route('/api/settings/test', methods=['POST'])
+        def test_guardian():
+            """Sends a test alert to verify Guardian Bot connectivity."""
+            try:
+                sent_to = self.guardian.send_test_alert()
+                if sent_to:
+                    return jsonify({"status": "success", "message": f"✅ Test alert sent to: {', '.join(sent_to)}"}), 200
+                else:
+                    return jsonify({"status": "error", "message": "No channels configured. Save your settings first."}), 400
+            except Exception as e:
+                return jsonify({"status": "error", "message": str(e)}), 500
+
+        @self.app.route('/api/history', methods=['GET', 'DELETE'])
+        def manage_history():
+            """API Endpoint to retrieve or clear security event history."""
+            try:
+                if request.method == 'GET':
+                    event_type = request.args.get('type', None)
+                    events = self.forensics.get_events(limit=200, event_type=event_type)
+                    stats = self.forensics.get_stats()
+                    return jsonify({"status": "success", "data": events, "stats": stats}), 200
+                if request.method == 'DELETE':
+                    self.forensics.clear()
+                    return jsonify({"status": "success", "message": "History cleared."}), 200
+            except Exception as e:
+                return jsonify({"status": "error", "message": str(e)}), 500
+
+        @self.app.route('/api/history/export', methods=['GET'])
+        def export_history():
+            """Exports the full history as CSV or JSON."""
+            from flask import Response
+            fmt = request.args.get('format', 'json')
+            try:
+                if fmt == 'csv':
+                    data = self.forensics.export_csv()
+                    return Response(data, mimetype='text/csv',
+                                    headers={"Content-Disposition": "attachment;filename=kharma_history.csv"})
+                else:
+                    data = self.forensics.export_json()
+                    return Response(data, mimetype='application/json',
+                                    headers={"Content-Disposition": "attachment;filename=kharma_history.json"})
             except Exception as e:
                 return jsonify({"status": "error", "message": str(e)}), 500
 

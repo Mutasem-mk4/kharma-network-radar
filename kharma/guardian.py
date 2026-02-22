@@ -136,3 +136,23 @@ class GuardianBot:
     def get_config(self):
         """Returns the current (sanitized) config."""
         return self.config
+
+    def send_test_alert(self):
+        """Sends a test message to all configured channels to verify connectivity."""
+        msg = (
+            "✅ <b>KHARMA GUARDIAN: TEST ALERT</b>\n"
+            "━━━━━━━━━━━━━━━━━━━\n"
+            "🟢 Connection is working!\n"
+            "🛡️ Kharma is watching over your network.\n"
+            "━━━━━━━━━━━━━━━━━━━\n"
+            "This is an automated test from your Kharma Guardian Bot."
+        )
+        sent_to = []
+        if self.config.get("telegram_bot_token") and self.config.get("telegram_chat_id"):
+            self._send_telegram(msg)
+            sent_to.append("Telegram")
+        if self.config.get("discord_webhook_url"):
+            self._send_discord(msg)
+            sent_to.append("Discord")
+        return sent_to
+

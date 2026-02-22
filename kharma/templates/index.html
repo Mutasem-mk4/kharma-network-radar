@@ -369,7 +369,7 @@
             <h1 class="flex items-center gap-3">
                 KHARMA<span>_RADAR</span>
             </h1>
-            <div style="font-size: 0.6rem; color: var(--text-dim); margin-top: 2px;">V5.1.2 ENTERPRISE ENDPOINT
+            <div style="font-size: 0.6rem; color: var(--text-dim); margin-top: 2px;">V9.0.0 ENTERPRISE ENDPOINT
                 PROTECTION</div>
         </div>
 
@@ -399,6 +399,16 @@
                 <span class="stat-label">Automated Shield</span>
                 <span id="shield-status" class="stat-value" style="color: var(--accent); cursor: pointer;"
                     onclick="toggleBlocklist()">0 BLOCKED</span>
+            </div>
+            <div class="stat-item" style="cursor: pointer;" onclick="toggleGuardian()"
+                title="Configure Guardian Bot Alerts">
+                <span class="stat-label">Guardian Bot</span>
+                <span class="stat-value" style="color: #a78bfa;">⚙ CONFIG</span>
+            </div>
+            <div class="stat-item" style="cursor: pointer;" onclick="toggleHistory()"
+                title="View Security Event History">
+                <span class="stat-label">History</span>
+                <span id="history-count" class="stat-value" style="color: #34d399;">📋 VIEW</span>
             </div>
         </div>
     </header>
@@ -512,10 +522,67 @@
                             type="checkbox" id="alert-block" checked> Alert on Block</label>
                     <label style="display: flex; gap: 0.4rem; align-items: center; font-size: 0.8rem;"><input
                             type="checkbox" id="alert-dpi" checked> Alert on DPI</label>
-                    <button onclick="saveGuardianSettings()"
-                        style="margin-left: auto; background: linear-gradient(135deg, #6366f1, #a78bfa); border: none; color: white; padding: 0.5rem 1.5rem; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 600;">SAVE
-                        & ACTIVATE</button>
+                    <div style="margin-left: auto; display: flex; gap: 0.5rem;">
+                        <button onclick="sendTestAlert()"
+                            style="background: transparent; border: 1px solid #a78bfa; color: #a78bfa; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 600;">🔔
+                            TEST ALERT</button>
+                        <button onclick="saveGuardianSettings()"
+                            style="background: linear-gradient(135deg, #6366f1, #a78bfa); border: none; color: white; padding: 0.5rem 1.5rem; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 600;">SAVE
+                            & ACTIVATE</button>
+                    </div>
                 </div>
+            </div>
+        </section>
+
+        <!-- Forensics History Panel -->
+        <section id="history-panel" class="glass-panel" style="margin-top: 1.5rem; display: none;">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <i data-lucide="archive" style="color: #34d399; width: 1.25rem;"></i>
+                    SECURITY EVENT HISTORY
+                </div>
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <span id="history-stats" style="font-size: 0.7rem; color: var(--text-dim);"></span>
+                    <select id="history-filter" onchange="updateHistory()"
+                        style="background: rgba(0,0,0,0.4); border: 1px solid var(--border); color: var(--text-main); padding: 0.3rem 0.5rem; border-radius: 4px; font-size: 0.75rem;">
+                        <option value="">ALL EVENTS</option>
+                        <option value="THREAT">THREATS</option>
+                        <option value="BLOCKED">BLOCKS</option>
+                        <option value="COMMUNITY_FLAG">COMMUNITY FLAGS</option>
+                        <option value="DPI_ALERT">DPI ALERTS</option>
+                    </select>
+                    <a href="/api/history/export?format=csv"
+                        style="background: transparent; border: 1px solid #34d399; color: #34d399; padding: 0.3rem 0.75rem; border-radius: 4px; font-size: 0.75rem; text-decoration: none; font-weight: 600;">⬇
+                        CSV</a>
+                    <a href="/api/history/export?format=json"
+                        style="background: transparent; border: 1px solid #6366f1; color: #6366f1; padding: 0.3rem 0.75rem; border-radius: 4px; font-size: 0.75rem; text-decoration: none; font-weight: 600;">⬇
+                        JSON</a>
+                    <button onclick="clearHistory()"
+                        style="background: transparent; border: 1px solid var(--danger); color: var(--danger); padding: 0.3rem 0.75rem; border-radius: 4px; font-size: 0.75rem; cursor: pointer;">🗑
+                        CLEAR</button>
+                    <button class="kill-btn" onclick="toggleHistory()">CLOSE</button>
+                </div>
+            </div>
+            <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.78rem;">
+                    <thead>
+                        <tr
+                            style="border-bottom: 1px solid var(--border); color: var(--text-dim); font-size: 0.65rem; letter-spacing: 0.08em;">
+                            <th style="padding: 0.6rem 1rem; text-align: left;">TIME</th>
+                            <th style="padding: 0.6rem 1rem; text-align: left;">EVENT</th>
+                            <th style="padding: 0.6rem 1rem; text-align: left;">IP</th>
+                            <th style="padding: 0.6rem 1rem; text-align: left;">PROCESS</th>
+                            <th style="padding: 0.6rem 1rem; text-align: left;">LOCATION</th>
+                            <th style="padding: 0.6rem 1rem; text-align: left;">DETAIL</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-body">
+                        <tr>
+                            <td colspan="6" style="text-align: center; padding: 2rem; color: var(--text-dim);">No events
+                                recorded yet.</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </section>
     </main>
@@ -691,6 +758,61 @@
             updateRadar();
         }
 
+        const severityColors = { critical: '#ef4444', high: '#f97316', medium: '#f59e0b', info: '#6366f1' };
+        const eventIcons = { THREAT: '🚨', BLOCKED: '🛡️', COMMUNITY_FLAG: '👥', DPI_ALERT: '⚠️' };
+
+        function toggleHistory() {
+            const panel = document.getElementById('history-panel');
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+            if (panel.style.display === 'block') updateHistory();
+        }
+
+        async function updateHistory() {
+            try {
+                const filter = document.getElementById('history-filter').value;
+                const url = filter ? `/api/history?type=${filter}` : '/api/history';
+                const res = await fetch(url);
+                const json = await res.json();
+                if (json.status !== 'success') return;
+
+                // Update stats badge
+                const stats = json.stats;
+                const statsStr = Object.entries(stats).map(([k, v]) => `${eventIcons[k] || '•'} ${k}: ${v}`).join('  |  ');
+                document.getElementById('history-stats').textContent = statsStr;
+
+                const total = json.data.length;
+                document.getElementById('history-count').textContent = `📋 ${total} EVENTS`;
+
+                const tbody = document.getElementById('history-body');
+                if (json.data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 2rem; color: var(--text-dim);">No events recorded yet. Detection events will appear here.</td></tr>';
+                    return;
+                }
+                let html = '';
+                json.data.forEach(ev => {
+                    const color = severityColors[ev.severity] || '#6366f1';
+                    const icon = eventIcons[ev.event_type] || '•';
+                    html += `<tr style="border-bottom: 1px solid rgba(255,255,255,0.04);">
+                        <td style="padding: 0.6rem 1rem; color: var(--text-dim); font-size: 0.7rem;">${ev.timestamp}</td>
+                        <td style="padding: 0.6rem 1rem;"><span style="background: ${color}22; color: ${color}; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 700;">${icon} ${ev.event_type}</span></td>
+                        <td style="padding: 0.6rem 1rem; font-family: monospace; color: ${color};">${ev.ip || '—'}</td>
+                        <td style="padding: 0.6rem 1rem; color: var(--text-main);">${ev.process || '—'}</td>
+                        <td style="padding: 0.6rem 1rem; color: var(--text-dim);">${ev.location || '—'}</td>
+                        <td style="padding: 0.6rem 1rem; color: var(--text-dim); font-size: 0.75rem;">${ev.detail || '—'}</td>
+                    </tr>`;
+                });
+                tbody.innerHTML = html;
+            } catch (e) { console.error("History error:", e); }
+        }
+
+        async function clearHistory() {
+            if (!confirm("Clear all security event history? This cannot be undone.")) return;
+            const res = await fetch('/api/history', { method: 'DELETE' });
+            const data = await res.json();
+            alert(data.message);
+            updateHistory();
+        }
+
         async function toggleGuardian() {
             const panel = document.getElementById('guardian-panel');
             if (panel.style.display === 'none') {
@@ -727,6 +849,16 @@
             });
             const data = await res.json();
             alert(data.message);
+        }
+
+        async function sendTestAlert() {
+            try {
+                const res = await fetch('/api/settings/test', { method: 'POST' });
+                const data = await res.json();
+                alert(data.message);
+            } catch (e) {
+                alert("Test failed. Is the server running?");
+            }
         }
 
         async function toggleShield(ip, currentlyBlocked) {
