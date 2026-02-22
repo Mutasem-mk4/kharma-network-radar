@@ -68,12 +68,10 @@ click.rich_click.OPTION_GROUPS = {
 
 HEADER = r"""
 [bold cyan]
-  _  _  _   _    _    ____  __  __    _    
- | |/ /| | | |  / \  |  _ \|  \/  |  / \   
- | ' / | |_| | / _ \ | |_) | |\/| | / _ \  
- | . \ |  _  |/ ___ \|  _ <| |  | |/ ___ \ 
- |_|\_\|_| |_/_/   \_\_| \_\_|  |_/_/   \_\ [/bold cyan]
-[bold white]   >> THE OVER-WATCH NETWORK MONITOR <<[/bold white]
+ _  _ _  _ ____ _  _ ____ 
+ |_/  |__| |__| |\/| |__| 
+ | \  |  | |  | |  | |  | [/bold cyan]
+[bold white] >> THE OVER-WATCH NETWORK MONITOR <<[/bold white]
 """
 
 @click.group(invoke_without_command=True, epilog=f"""
