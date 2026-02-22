@@ -59,30 +59,35 @@ click.rich_click.OPTION_GROUPS = {
             "name": "Visualization Options",
             "options": ["--filter", "--malware-only"],
         },
-        {
-            "name": "Operational Controls",
             "options": ["--log", "--protect"],
         },
     ]
 }
 
+# Professional Layout Settings
+click.rich_click.USE_RICH_MARKUP = True
+click.rich_click.WIDTH = 70
+click.rich_click.SHOW_ARGUMENTS = True
+click.rich_click.GROUP_ARGUMENTS_OPTIONS = True
+click.rich_click.STYLE_EPILOG_TEXT = "white"
+
 HEADER = r"""
-[bold cyan]
- _  _
-|_/ 
-| \ [/bold cyan] [bold white]KHARMA[/bold white]
-[dim]Live Network Radar[/dim]
+[bold cyan] _  _ _  _ ____ ____ _  _ ____ [/bold cyan]
+[bold cyan] |_/  |__| |__| |__/ |\/| |__| [/bold cyan]
+[bold cyan] | \  |  | |  | |  \ |  | |  | [/bold cyan]
+[bold white]   >> ELITE NETWORK MONITOR <<[/bold white]
 """
 
 @click.group(invoke_without_command=True, epilog=f"""
 {HEADER}
-[bold underline]🚀 Quick Start[/bold underline]
-[cyan]• Radar:[/cyan] [white]kharma run[/white]
-[cyan]• Web:[/cyan]   [white]kharma web[/white]
-[cyan]• Shield:[/cyan][white]kharma run --protect[/white]
-[cyan]• Silent:[/cyan][white]kharma daemon start[/white]
+[bold underline]🚀 Tactical Quick Start[/bold underline]
 
-[dim italic]Run 'kharma [CMD] --help'[/dim italic]
+[cyan]• Radar:[/cyan]   [white]kharma run[/white]
+[cyan]• Web:[/cyan]     [white]kharma web[/white]
+[cyan]• Shield:[/cyan]  [white]kharma run --protect[/white]
+[cyan]• Silent:[/cyan]  [white]kharma daemon start[/white]
+
+[dim italic]Run 'kharma [CMD] --help' for module documentation.[/dim italic]
 """)
 @click.pass_context
 def cli(ctx):
