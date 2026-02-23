@@ -1,4 +1,4 @@
-name: kharma
+name: kharma-radar
 base: core22
 version: '10.2.0'
 summary: Elite proactive network defense suite.
