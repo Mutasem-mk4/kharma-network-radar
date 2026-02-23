@@ -1,0 +1,39 @@
+name: Build Debian Package
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build_deb:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dpkg-dev debhelper dh-python python3-all python3-setuptools
+
+      - name: Build Debian Package
+        run: |
+          chmod +x debian/rules
+          dpkg-buildpackage -us -uc -b
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: debian-package
+          path: ../kharma-radar_*.deb
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ../kharma-radar_*.deb
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
