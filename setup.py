@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="kharma-radar",
-    version="10.2.0",
+    version="10.2.1",
     author="Mutasem-mk4",
     author_email="example@example.com",
     description="Kharma Evolution: An elite proactive defense suite featuring real-time radar, DPI, Geo-Fencing, and automated malware termination.",
@@ -37,9 +37,9 @@ setup(
         'flask-talisman',
     ],
     project_urls={
-        "Bug Tracker": "https://github.com/Mutaz/kharma-network-radar/issues",
-        "Source Code": "https://github.com/Mutaz/kharma-network-radar",
-        "Documentation": "https://github.com/Mutaz/kharma-network-radar#readme",
+        "Bug Tracker": "https://github.com/Mutasem-mk4/kharma-network-radar/issues",
+        "Source Code": "https://github.com/Mutasem-mk4/kharma-network-radar",
+        "Documentation": "https://github.com/Mutasem-mk4/kharma-network-radar#readme",
     },
     entry_points={
         "console_scripts": [

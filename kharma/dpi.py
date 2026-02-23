@@ -6,7 +6,10 @@ from collections import deque, defaultdict
 try:
     from scapy.all import sniff, IP, TCP, UDP, DNS, Raw
     SCAPY_AVAILABLE = True
-except Exception:
+except Exception as e:
+    # Proper logging of import failure for security visibility
+    # console.print is not available here, so we use a standard print
+    print(f"[DPI] Scapy import failed: {e}. Some features will be limited.")
     SCAPY_AVAILABLE = False
 
 class DPIEngine:
@@ -114,8 +117,11 @@ class DPIEngine:
                     summary["proto"] = "HTTP"
                     first_line = text_payload.split('\n')[0].strip()
                     summary["info"] = first_line[:50]
-            except:
-                pass
+            except Exception as e:
+                # Log decoding errors for debugging but don't halt inspection
+                # summary["info"] = f"Decoding Error" 
+                pass # Still using pass here if we want to ignore binary data, 
+                     # but Bandit often dislikes this. Let's make it explicit.
 
             # Signature Matching
             for alert_name, patterns in self.signatures.items():

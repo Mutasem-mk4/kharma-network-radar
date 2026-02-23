@@ -1,7 +1,7 @@
 # Kharma Evolution - Winget Manifest
 # YAML Reference: https://github.com/microsoft/winget-pkgs
 
-Id: Mutasem.Kharma Evolution
+Id: Mutasem.KharmaEvolution
 Version: 10.2.0
 Name: Kharma Evolution
 Publisher: Mutasem
@@ -12,6 +12,6 @@ Installers:
   - Architecture: x64
     InstallerType: portable
     InstallerUrl: https://github.com/Mutasem-mk4/kharma-network-radar/releases/download/v10.2.0/kharma.exe
-    InstallerSha256: SKIP # Update with actual hash before submission
+    InstallerSha256: c491de442c8eefab722b981ed2f2db91d2ecffe0741424c95996f1ee92008bac
 Commands:
   - kharma
