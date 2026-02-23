@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kharma Evolution | Elite Network Radar</title>
+    <meta name="description"
+        content="Kharma Network Radar is an AI-powered cybersecurity tool that monitors your network connections in real-time, detects malicious traffic, performs deep packet inspection, and can automatically block dangerous IPs.">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        :root {
+            --bg-deep: #020617;
+            /* slate-950 */
+            --bg-panel: rgba(15, 23, 42, 0.4);
+            --border: rgba(51, 65, 85, 0.4);
+            --accent: #10b981;
+            /* emerald-500 */
+            --accent-glow: rgba(16, 185, 129, 0.2);
+            --secondary: #6366f1;
+            /* indigo-500 */
+            --text-main: #f8fafc;
+            --text-dim: #94a3b8;
+            --danger: #ef4444;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-deep);
+            color: var(--text-main);
+            line-height: 1.6;
+            overflow-x: hidden;
+            background-image:
+                radial-gradient(circle at 15% 50%, rgba(16, 185, 129, 0.08), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(99, 102, 241, 0.08), transparent 25%);
+            background-attachment: fixed;
+        }
+
+        .glass {
+            background: var(--bg-panel);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--border);
+        }
+
+        /* Nav */
+        nav {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 1000;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .brand {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 800;
+            font-size: 1.25rem;
+            letter-spacing: -0.05em;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .brand span {
+            color: var(--accent);
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        .nav-links a {
+            color: var(--text-dim);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .nav-links a:hover {
+            color: var(--text-main);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.6rem 1.25rem;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            text-decoration: none;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: #020617;
+            box-shadow: 0 0 15px var(--accent-glow);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 0 25px var(--accent-glow);
+            filter: brightness(1.1);
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: var(--text-main);
+            border: 1px solid var(--border);
+        }
+
+        .btn-outline:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        /* Hero */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 6rem 2rem 2rem;
+            position: relative;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 800px;
+            height: 800px;
+            background: radial-gradient(circle, rgba(99, 102, 241, 0.1) 0%, transparent 60%);
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.4rem 1rem;
+            border-radius: 999px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--accent);
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            margin-bottom: 2rem;
+        }
+
+        h1 {
+            font-size: 4.5rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(to right, #f8fafc, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        h1 span {
+            background: linear-gradient(135deg, var(--accent), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero p {
+            font-size: 1.25rem;
+            color: var(--text-dim);
+            max-width: 600px;
+            margin-bottom: 3rem;
+        }
+
+        .cta-group {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .terminal-box {
+            margin-top: 4rem;
+            width: 100%;
+            max-width: 900px;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .terminal-header {
+            background: #0f172a;
+            padding: 0.75rem 1rem;
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .dot-red {
+            background: #ef4444;
+        }
+
+        .dot-yellow {
+            background: #f59e0b;
+        }
+
+        .dot-green {
+            background: #10b981;
+        }
+
+        .terminal-body {
+            background: #020617;
+            padding: 1.5rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            text-align: left;
+            color: #cbd5e1;
+        }
+
+        .prompt {
+            color: var(--secondary);
+        }
+
+        .cmd {
+            color: var(--accent);
+        }
+
+        .output {
+            color: var(--text-dim);
+            margin-top: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .danger-text {
+            color: var(--danger);
+            font-weight: bold;
+        }
+
+        /* Features Section */
+        .features {
+            padding: 8rem 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .section-title {
+            text-align: center;
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        .section-subtitle {
+            text-align: center;
+            color: var(--text-dim);
+            margin-bottom: 4rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+
+        .feature-card {
+            padding: 2rem;
+            border-radius: 12px;
+            transition: transform 0.3s;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(99, 102, 241, 0.5);
+        }
+
+        .icon-box {
+            width: 48px;
+            height: 48px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1.5rem;
+            background: rgba(99, 102, 241, 0.1);
+            color: var(--secondary);
+        }
+
+        .icon-box.green {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--accent);
+        }
+
+        .icon-box.red {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+        }
+
+        .feature-card h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+        }
+
+        .feature-card p {
+            color: var(--text-dim);
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+
+        /* Installation */
+        .install {
+            padding: 6rem 2rem;
+            text-align: center;
+            background: linear-gradient(to bottom, transparent, rgba(15, 23, 42, 0.5));
+        }
+
+        .code-block {
+            display: inline-flex;
+            align-items: center;
+            gap: 1rem;
+            background: #020617;
+            border: 1px solid var(--border);
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1rem;
+            margin-top: 2rem;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .copy-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-dim);
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .copy-btn:hover {
+            color: var(--text-main);
+        }
+
+        /* Footer */
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 3rem 2rem;
+            text-align: center;
+            color: var(--text-dim);
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 3rem;
+            }
+
+            .nav-links {
+                display: none;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav class="glass">
+        <div class="brand">
+            <i data-lucide="radar"></i>
+            KHARMA<span>_RADAR</span>
+        </div>
+        <div class="nav-links">
+            <a href="#features">Features</a>
+            <a href="#install">Installation</a>
+            <a href="https://github.com/Mutasem-mk4/kharma-network-radar" target="_blank" class="btn btn-outline"
+                style="padding: 0.4rem 1rem;">
+                <i data-lucide="github" style="width: 18px; height: 18px;"></i> GitHub
+            </a>
+        </div>
+    </nav>
+
+    <section class="hero">
+        <div class="hero-badge">
+            <i data-lucide="zap" style="width: 14px; height: 14px;"></i> Evolution 10.2 Released
+        </div>
+        <h1>Elite Proactive <br><span>Network Defense</span></h1>
+        <p>An AI-powered cybersecurity suite that monitors system connections, detects malware via deep packet
+            inspection, and automatically firewall-blocks threats in real-time.</p>
+
+        <div class="cta-group">
+            <a href="#install" class="btn btn-primary">
+                <i data-lucide="download"></i> Install Now
+            </a>
+            <a href="https://github.com/Mutasem-mk4/kharma-network-radar" target="_blank" class="btn btn-outline">
+                View Documentation
+            </a>
+        </div>
+
+        <div class="terminal-box">
+            <div class="terminal-header">
+                <div class="dot dot-red"></div>
+                <div class="dot dot-yellow"></div>
+                <div class="dot dot-green"></div>
+                <div style="margin-left:auto; font-size:0.75rem; color:#64748b; font-family:sans-serif;">Kharma
+                    Over-Watch</div>
+            </div>
+            <div class="terminal-body">
+                <div><span class="prompt">PS C:\></span> <span class="cmd">winget install Mutasem.KharmaEvolution</span>
+                </div>
+                <div class="output">Found Kharma Network Radar [Mutasem.KharmaEvolution] Version 10.2.0<br>Successfully
+                    installed.</div>
+
+                <div><span class="prompt">PS C:\></span> <span class="cmd">kharma run --protect</span></div>
+                <div class="output" style="color: #10b981;">
+                    [*] Kharma Evolution Radar initializing...<br>
+                    [*] VT Engine Linked. Local Sensors Active.<br>
+                    [+] Process 'chrome.exe' (PID: 1204) -> 142.250.184.206 [SAFE]
+                </div>
+                <div>
+                    <span class="danger-text">[!] MALWARE DETECTED:</span> Unknown binary 'sysupd.exe' (PID: 9942)<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;╰─ Target: 185.15.22.1 (RU) - Community Flagged<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;╰─ <span style="color: #f59e0b;">[ACTION] Terminating PID 9942...
+                        SUCCESS.</span><br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;╰─ <span style="color: #6366f1;">[FIREWALL] Shielding IP 185.15.22.1
+                        (OUTBOUND BLOCKED).</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="features" class="features">
+        <h2 class="section-title">Beyond Standard Monitoring</h2>
+        <p class="section-subtitle">Kharma doesn't just watch your network. It actively hunts and neutralizes threats.
+        </p>
+
+        <div class="grid">
+            <div class="feature-card glass">
+                <div class="icon-box"><i data-lucide="activity"></i></div>
+                <h3>Active Defense (Auto-Kill)</h3>
+                <p>Instantly terminates processes that connect to known malicious IPs or match flagged binary hashes via
+                    VirusTotal. The ultimate shield against data exfiltration.</p>
+            </div>
+            <div class="feature-card glass">
+                <div class="icon-box green"><i data-lucide="scan-line"></i></div>
+                <h3>Deep Packet Inspection</h3>
+                <p>Real-time protocol detection and payload signature matching. Catches anomalies, unencrypted
+                    credentials, and suspicious byte-patterns mid-flight.</p>
+            </div>
+            <div class="feature-card glass">
+                <div class="icon-box"><i data-lucide="globe"></i></div>
+                <h3>Live Radar & Geo-Fencing</h3>
+                <p>A stunning web dashboard projecting connection routes globally. Automatically block entire countries
+                    or malicious ASNs with one click.</p>
+            </div>
+            <div class="feature-card glass">
+                <div class="icon-box red"><i data-lucide="shield-alert"></i></div>
+                <h3>Intelligent Emulation Forensics</h3>
+                <p>Pulls executables from memory, extracts strings, and performs heuristic analysis to uncover hidden
+                    intents before execution payloads trigger.</p>
+            </div>
+            <div class="feature-card glass">
+                <div class="icon-box"><i data-lucide="layers"></i></div>
+                <h3>Multi-Node Swarm Hive</h3>
+                <p>Federate multiple Kharma nodes across your infrastructure into a single pane of glass for true
+                    enterprise-level oversight.</p>
+            </div>
+            <div class="feature-card glass">
+                <div class="icon-box green"><i data-lucide="bot"></i></div>
+                <h3>Guardian Bot Alerts</h3>
+                <p>Push critical breach alerts, DPI flags, and firewall blocks dynamically to Telegram or Discord as
+                    they happen.</p>
+            </div>
+        </div>
+    </section>
+
+    <section id="install" class="install">
+        <h2 class="section-title" style="font-size: 2rem;">Get Kharma Evolution</h2>
+        <p style="color: var(--text-dim); max-width: 500px; margin: 0 auto;">Install universally across Windows, Linux,
+            and macOS. Zero heavy dependencies required.</p>
+
+        <div class="code-block">
+            <span style="color: #64748b;">$</span>
+            <span id="install-cmd">winget install Mutasem.KharmaEvolution</span>
+            <button class="copy-btn" onclick="copyCmd()" title="Copy to clipboard">
+                <i data-lucide="copy" style="width: 18px; height: 18px;"></i>
+            </button>
+        </div>
+
+        <div style="margin-top: 2rem; display: flex; gap: 1rem; justify-content: center;">
+            <span class="hero-badge" style="background: transparent; cursor: pointer;"
+                onclick="setCmd('pip install kharma-radar')"><i data-lucide="box" style="width:14px;height:14px;"></i>
+                PyPI</span>
+            <span class="hero-badge" style="background: transparent; cursor: pointer;"
+                onclick="setCmd('brew install Mutasem-mk4/kharma-network-radar/kharma')"><i data-lucide="apple"
+                    style="width:14px;height:14px;"></i> Homebrew</span>
+            <span class="hero-badge" style="background: transparent; cursor: pointer;"
+                onclick="setCmd('docker run --net=host -p 8085:8085 mutasem/kharma')"><i data-lucide="container"
+                    style="width:14px;height:14px;"></i> Docker</span>
+        </div>
+    </section>
+
+    <footer>
+        <div
+            style="font-family: 'JetBrains Mono', monospace; font-weight: 700; margin-bottom: 1rem; color: var(--text-main);">
+            KHARMA_RADAR</div>
+        <p>Developed by Mutasem Alashkar &copy; 2026. <br>Open Source under the MIT License.</p>
+    </footer>
+
+    <script>
+        lucide.createIcons();
+
+        function setCmd(cmd) {
+            document.getElementById('install-cmd').innerText = cmd;
+        }
+
+        function copyCmd() {
+            const text = document.getElementById('install-cmd').innerText;
+            navigator.clipboard.writeText(text);
+            const btn = document.querySelector('.copy-btn');
+            btn.innerHTML = '<i data-lucide="check" style="width: 18px; height: 18px; color: var(--accent);"></i>';
+            lucide.createIcons();
+            setTimeout(() => {
+                btn.innerHTML = '<i data-lucide="copy" style="width: 18px; height: 18px;"></i>';
+                lucide.createIcons();
+            }, 2000);
+        }
+    </script>
+</body>
+
+</html>
