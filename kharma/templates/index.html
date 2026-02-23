@@ -555,10 +555,68 @@
             border-bottom: 1px solid rgba(255, 255, 255, 0.05);
             padding: 2px 0;
         }
+
+        /* Toast Notifications */
+        #toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: none;
+        }
+
+        .toast {
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(8px);
+            border-left: 4px solid var(--accent);
+            border-top: 1px solid var(--border);
+            border-right: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 12px 16px;
+            color: var(--text-main);
+            width: 320px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            transform: translateX(120%);
+            transition: transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55), opacity 0.4s;
+            opacity: 0;
+            pointer-events: auto;
+        }
+
+        .toast.show {
+            transform: translateX(0);
+            opacity: 1;
+        }
+
+        .toast-title {
+            font-weight: 700;
+            font-size: 0.8rem;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .toast-message {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            line-height: 1.4;
+            font-family: monospace;
+        }
+        
+        .toast.danger { border-left-color: var(--danger); }
+        .toast.warning { border-left-color: #f59e0b; }
+        .toast.info { border-left-color: #6366f1; }
     </style>
 </head>
 
 <body>
+    <div id="toast-container"></div>
 
     <header class="glass-panel">
         <div class="brand">
@@ -909,6 +967,7 @@
         var packetStream = document.getElementById('packet-stream');
 
         var allConnections = [];
+        var knownThreats = new Set();
         var lastPacketsJson = ""; // For diffing
         var map;
         var bwChart;
@@ -930,6 +989,38 @@
             }
         } catch (e) {
             console.error(e);
+        }
+
+        // Toast Notification System
+        function showToast(title, message, type = 'danger') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            
+            let icon = 'alert-circle';
+            let iconColor = 'var(--text-main)';
+            if(type === 'danger') { icon = 'shield-alert'; iconColor = 'var(--danger)'; }
+            if(type === 'warning') { icon = 'alert-triangle'; iconColor = '#f59e0b'; }
+            if(type === 'info') { icon = 'info'; iconColor = '#6366f1'; }
+
+            toast.innerHTML = `
+                <div class="toast-title">
+                    <i data-lucide="${icon}" style="width:16px; height:16px; color: ${iconColor};"></i> 
+                    ${title}
+                </div>
+                <div class="toast-message">${message}</div>
+            `;
+            container.appendChild(toast);
+            if (typeof lucide !== 'undefined') lucide.createIcons({ root: toast });
+            
+            // Trigger entry animation
+            setTimeout(() => toast.classList.add('show'), 10);
+            
+            // Remove after 5s Delay
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 400);
+            }, 5000);
         }
 
         // Map Setup
@@ -998,6 +1089,20 @@
                 if (isShielded) {
                     statusLabel = "SHIELDED (BLOCKED)";
                     statusClass = "status-community"; // Using yellow/orange for shield too
+                }
+
+                // Trigger Toast Notifications for new events
+                if (isThreat && !knownThreats.has(conn.remote_ip)) {
+                    knownThreats.add(conn.remote_ip);
+                    showToast("MALWARE DETECTED", `Process <b>${conn.process_name}</b> connecting to malicious IP: ${conn.remote_ip}`, "danger");
+                }
+                if (isShielded && !knownThreats.has(`shield-${conn.remote_ip}`)) {
+                    knownThreats.add(`shield-${conn.remote_ip}`);
+                    showToast("CONNECTION BLOCKED", `Firewall isolated target: ${conn.remote_ip}`, "info");
+                }
+                if (isCommunity && !isThreat && !knownThreats.has(`comm-${conn.remote_ip}`)) {
+                    knownThreats.add(`comm-${conn.remote_ip}`);
+                    showToast("COMMUNITY FLAG", `Suspicious target flagged by community: ${conn.remote_ip}`, "warning");
                 }
 
                 const rowId = `row-${conn.pid}-${conn.remote_ip.split('.').join('-')}`;

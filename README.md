@@ -66,7 +66,7 @@ snap install kharma --classic
 
 ### 🆕 Option 6: Windows Winget (Official)
 ```bash
-winget install kharma
+winget install Mutasem.KharmaEvolution
 ```
 
 ### Option 6: Standard PyPI Install (For Developers)
