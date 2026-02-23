@@ -1,7 +1,7 @@
 <div align="center">
   <img src="https://img.icons8.com/nolan/256/radar.png" alt="Kharma Logo" width="120" />
   <h1>Kharma_Radar</h1>
-  <p><b>The Over-Watch Network Monitor</b></p>
+  <p><b>Elite Proactive Defense & Enterprise-Grade Network Intelligence</b></p>
   <p>
     <a href="https://pypi.org/project/kharma-radar/"><img src="https://img.shields.io/pypi/v/kharma-radar?label=PyPI%20Release&color=10b981&style=flat-square" alt="PyPI" /></a>
     <img src="https://img.shields.io/pypi/dm/kharma-radar?color=blue&style=flat-square" alt="Downloads" />
@@ -9,41 +9,35 @@
     <img src="https://img.shields.io/github/license/Mutasem-mk4/kharma-network-radar?color=purple&style=flat-square" alt="License MIT" />
     <img src="https://img.shields.io/github/actions/workflow/status/Mutasem-mk4/kharma-network-radar/publish.yml?style=flat-square&label=Security%20Publish" alt="Security Publish" />
   </p>
-  <p><i>An elite cybersecurity CLI & Full-Stack Web tool that maps active connections to process IDs, geographical locations, and global threat intelligence feeds in real-time.</i></p>
+  <p><i>Kharma Evolution is an elite, proactive network defense suite designed to eliminate 'blind spots' in system visibility. It transforms raw network data into actionable security intelligence using real-time radar mapping, deep packet inspection (DPI), and automated malware termination.</i></p>
 </div>
 
 ---
 
-## 👁️ What is Kharma?
+## 🛡️ The Evolution of Defense
 
-Traditional network monitoring on Linux/Windows requires manually chaining `netstat`, `grep`, `lsof`, and external IP checkers. This is slow and tedious during an incident response.
-
-**Kharma** acts as an all-seeing eye for your operating system. It provides a stunning, high-performance radar that intercepts outbound connections, unmasks the executable initiating the socket, runs the file against 70+ Anti-Virus engines in the cloud, and plots the destination IP on a map—all updated every 2 seconds.
+Kharma is not just a monitor; it's an **Active Defense System**. It acts as an all-seeing eye for your operating system, providing a stunning, high-performance radar that intercepts outbound connections, unmasks the executable initiating the socket, runs it against 70+ Anti-Virus engines in the cloud, and plots targets on a global map—all updated every 2 seconds.
 
 ---
 
 ## 🔥 Elite Features
 
-- 🌐 **Web UI Dashboard (New in v5.0):** Spawns a hidden Flask backend serving a beautiful, dark-themed HTML/JS Dashboard. View live connections, Geo-locations, and kill malware right from your browser.
-- 📡 **Real-Time Visualizer (v10.1):** Live bandwidth tracking per-process and dynamic Chart.js throughput visualization.
-- 🌍 **Elite Geo-Fencing (v10.2):** Reactive nation-blocking. Automatically firewall-block entire countries from the dashboard.
-- 🔍 **Threat Hunting Mode:** Deep forensic process deep-dives. Extract binary strings, file handles, and metadata with one click.
-- 🤖 **AI Behavioral Profiling:** Learning-based anomaly detection. Flags volume spikes and unusual geographic connections using the new `BehaviorEngine`.
-- 🐝 **Multi-Node Swarm (v10.5):** Federate multiple Kharma nodes into a single 'Hive' view for global network oversight.
-- 🦠 **Enterprise EDR (VirusTotal):** Natively extracts the physical binary path of connected processes (`.exe` / ELF), computes its SHA-256 hash locally, and verifies it against VirusTotal limits.
-- ⚔️ **Active Defense (Auto-Kill IPS):** Instantly terminates any process the millisecond it initiates a connection to a known malicious IP (Firehol blocklist) or a flagged binary hash.
-- 📄 **Forensic Snapshots:** Generate professional, printable incident reports for any suspicious process activity.
-- 🛰️ **Offline Geo-IP Engine:** Built-in `MaxMind GeoLite2` database ensures **0ms lag** when resolving IP coordinates. No external rate limits, 100% privacy.
-- 🗄️ **Time Machine Logger:** Silently records all established connections to a local SQLite database (`~/.kharma/kharma_history.db`) for post-incident forensics.
-- 🤖 **Background Daemon & Telegram Alerts:** Run `kharma daemon start` to deploy a headless background worker that watches traffic quietly and pushes critical breach alerts dynamically to Telegram. 
-
+- 🌐 **Evolution Web Dashboard:** A stunning glassmorphism interface serving real-time radar data, bandwidth charts, and security event logs.
+- 📡 **Deep Packet Inspection (DPI):** Real-time protocol detection and signature matching to catch SQLi, XSS, and anomalous payloads.
+- 🌍 **Elite Geo-Fencing:** Reactive nation-blocking. Automatically firewall-block entire countries from the dashboard with one click.
+- 🦠 **Enterprise EDR (VirusTotal):** Natively extracts binary paths, computes SHA-256 hashes, and conducts cloud-based malware validation.
+- ⚔️ **Active Defense (Auto-Kill):** Instantly terminates processes that connect to known malicious IPs or match flagged binary hashes.
+- 🤖 **Guardian Bot Alerts:** Push critical breach alerts dynamically to Telegram or Discord as they happen.
+- 🐝 **Multi-Node Swarm:** Federate multiple Kharma nodes into a single 'Hive' view for global enterprise oversight.
+- 🛰️ **Offline Geo-IP Engine:** Powered by `MaxMind GeoLite2` for **0ms lag** resolution and 100% privacy.
+- 🗄️ **Time Machine Forensics:** Persistent SQLite logging for detailed post-incident analysis and reporting.
 ---
 
 ## 🚀 Installation & Setup
 
 ### 🆕 Option 1: Standalone Portable EXE (Easiest)
 Download the zero-dependency executable. No Python installation required!
-- **Download:** [kharma.exe (v10.1.9)](https://github.com/Mutasem-mk4/kharma-network-radar/releases)
+- **Download:** [kharma.exe (v10.2.0)](https://github.com/Mutasem-mk4/kharma-network-radar/releases)
 - **Usage:** Just double-click to run or use it from the command line.
 
 ### 🆕 Option 2: Smart Windows Installer (Automated)
@@ -52,7 +46,30 @@ Don't have Python? Our script will set it up for you using `winget`.
 2. Right-click and **Run as Administrator**.
 3. It will automatically install Python (if missing) and all dependencies.
 
-### Option 3: Standard PyPI Install (For Developers)
+### 🆕 Option 3: Docker (Containerized Dashboard)
+The most secure way to run the Web Dashboard without touching your local Python environment.
+```bash
+docker build -t kharma-radar .
+docker run --net=host -p 8085:8085 kharma-radar
+```
+*(Requires `--net=host` to monitor the host machine's actual network interface).*
+
+### 🆕 Option 4: Homebrew (macOS & Linux)
+```bash
+brew install Mutasem-mk4/kharma-network-radar/kharma
+```
+
+### 🆕 Option 5: Snapcraft (Ubuntu & Others)
+```bash
+snap install kharma --classic
+```
+
+### 🆕 Option 6: Windows Winget (Official)
+```bash
+winget install kharma
+```
+
+### Option 6: Standard PyPI Install (For Developers)
 ```bash
 pip install kharma-radar
 ```

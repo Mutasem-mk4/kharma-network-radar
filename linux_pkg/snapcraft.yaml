@@ -1,0 +1,36 @@
+name: kharma
+base: core22
+version: '10.2.0'
+summary: Elite proactive network defense suite.
+description: |
+  Kharma Evolution is an elite, proactive network defense suite designed to 
+  eliminate "blind spots" in system visibility. Features real-time radar mapping, 
+  DPI, Geo-Fencing, and automated malware termination.
+
+grade: stable
+confinement: classic # Required for network monitoring and process access
+
+parts:
+  kharma:
+    plugin: python
+    source: .
+    python-packages:
+      - psutil
+      - click
+      - rich
+      - requests
+      - maxminddb
+      - vt-py
+      - flask
+      - flask-cors
+      - scapy
+    stage-packages:
+      - libpcap0.8
+
+apps:
+  kharma:
+    command: bin/kharma
+    plugs:
+      - network
+      - network-bind
+      - system-observe

@@ -1,0 +1,1 @@
+{"message":"'KharmaWebServer' object has no attribute '_load_settings'","status":"error","trace":"Traceback (most recent call last):\n  File \"C:\\Users\\User\\.gemini\\antigravity\\scratch\\kharma\\kharma\\server.py\", line 142, in get_live_radar\n    try:\n         \nAttributeError: 'KharmaWebServer' object has no attribute '_load_settings'\n"}

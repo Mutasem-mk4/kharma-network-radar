@@ -5,6 +5,7 @@ class NetworkScanner:
     def __init__(self):
         self.connections = []
         self.process_names = {}
+        self.process_exe = {}
         self.flow_map = {} # Maps (local_ip, local_port) -> PID
         
     def scan(self):
@@ -23,7 +24,7 @@ class NetworkScanner:
     def _update_process_mapping(self):
         """Build a cache of PID to Process Name for faster lookup, handling access denied errors."""
         self.process_names.clear()
-        self.process_exe = {}
+        self.process_exe.clear()
         for p in psutil.process_iter(['pid', 'name', 'exe']):
             try:
                 self.process_names[p.info['pid']] = p.info['name']
@@ -42,6 +43,16 @@ class NetworkScanner:
             if conn.status == 'ESTABLISHED':
                 # Skip localhost/loopback connections to focus on external traffic
                 if conn.raddr and conn.raddr.ip not in ('127.0.0.1', '::1', '0.0.0.0'):
+                    # Fetch process info dynamically if missing from cache (for new processes)
+                    if conn.pid not in self.process_names:
+                        try:
+                            p = psutil.Process(conn.pid)
+                            self.process_names[conn.pid] = p.name()
+                            self.process_exe[conn.pid] = p.exe()
+                        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                            self.process_names[conn.pid] = "Unknown/Access Denied"
+                            self.process_exe[conn.pid] = None
+                            
                     p_name = self.process_names.get(conn.pid, str(conn.pid) if conn.pid else "System")
                     p_exe = self.process_exe.get(conn.pid, None)
                     
@@ -57,5 +68,5 @@ class NetworkScanner:
                     })
         
         # Sort by Process Name, then Remote IP
-        return sorted(active_conns, key=lambda x: (x['name'], x['remote_ip']))
+        return sorted(active_conns, key=lambda x: (x.get('name', ''), x.get('remote_ip', '')))
 

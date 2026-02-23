@@ -58,6 +58,7 @@ class KharmaWebServer:
             'default-src': '\'self\'',
             'script-src': [
                 '\'self\'',
+                '\'unsafe-inline\'',
                 'https://cdn.tailwindcss.com',
                 'https://unpkg.com',
                 'https://cdn.jsdelivr.net'
@@ -65,6 +66,7 @@ class KharmaWebServer:
             'style-src': [
                 '\'self\'',
                 '\'unsafe-inline\'',
+                'https://unpkg.com',
                 'https://cdn.jsdelivr.net',
                 'https://fonts.googleapis.com'
             ],
@@ -112,9 +114,18 @@ class KharmaWebServer:
         self.shield = ShieldManager()
         self.guardian = GuardianBot()
         self.forensics = ForensicsDB()
-        self.hunter = HunterEngine()
         self.behavior = BehaviorEngine()
+        self.hunter = HunterEngine()
         self.swarm = SwarmEngine(self.secret_token)
+
+    def _load_settings(self):
+        import json, os
+        config_path = os.path.expanduser("~/.kharma/daemon_config.json")
+        if os.path.exists(config_path):
+            with open(config_path, "r") as f:
+                try: return json.load(f)
+                except: pass
+        return {}
 
     def _setup_routes(self):
         @self.app.route('/')
@@ -199,6 +210,14 @@ class KharmaWebServer:
                     if is_community_flagged:
                         status_text = "SUSPICIOUS"
 
+                    # 5. AI Behavioral Profiling
+                    ai_results = self.behavior.analyze(
+                        conn.get('name', 'Unknown'), 
+                        bandwidth_stats.get(conn['pid'], {}).get('in_kbps', 0),
+                        bandwidth_stats.get(conn['pid'], {}).get('out_kbps', 0),
+                        country_code
+                    )
+
                     # Assemble JSON Row
                     radar_data.append({
                         "process_name": conn.get('name', 'Unknown'),
@@ -217,18 +236,16 @@ class KharmaWebServer:
                         "community_reports": community_detail['reports'] if is_community_flagged else 0,
                         "in_kbps": bandwidth_stats.get(conn['pid'], {}).get('in_kbps', 0),
                         "out_kbps": bandwidth_stats.get(conn['pid'], {}).get('out_kbps', 0),
-                        "anomalies": self.behavior.analyze(
-                            conn.get('name', 'Unknown'), 
-                            bandwidth_stats.get(conn['pid'], {}).get('in_kbps', 0),
-                            bandwidth_stats.get(conn['pid'], {}).get('out_kbps', 0),
-                            country_code
-                        ),
+                        "anomalies": ai_results['anomalies'],
+                        "ai_score": ai_results['score'],
+                        "ai_level": ai_results['level'],
+                        "ai_msg": ai_results['message'],
                         "is_shielded": remote_ip in blocked_ips,
                         "vt_malicious": vt_malicious,
                         "vt_total": vt_total
                     })
 
-                    # 5. Auto-Shielding + Guardian + Forensics
+                    # 6. Auto-Shielding + Guardian + Forensics
                     if remote_ip not in blocked_ips:
                         risk_score = 0
                         if is_community_flagged and community_detail['reports'] >= 3: risk_score += 10
@@ -474,5 +491,25 @@ class KharmaWebServer:
         self.app.run(host=self.host, port=self.port, debug=False)
 
 if __name__ == '__main__':
+    import platform, sys, os
+    if platform.system() == "Windows":
+        import ctypes
+        if ctypes.windll.shell32.IsUserAnAdmin() == 0:
+            script = os.path.abspath(sys.argv[0])
+            params = ' '.join([f'"{arg}"' for arg in sys.argv[1:]])
+            if getattr(sys, 'frozen', False):
+                ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, params, None, 1)
+            else:
+                ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, f'"{script}" {params}', None, 1)
+            sys.exit(0)
+
+    # Auto-open browser in 1 second
+    import threading, webbrowser, time
+    def open_browser():
+        time.sleep(1.5)
+        webbrowser.open("http://127.0.0.1:8085")
+    
+    threading.Thread(target=open_browser, daemon=True).start()
+
     server = KharmaWebServer()
     server.start()

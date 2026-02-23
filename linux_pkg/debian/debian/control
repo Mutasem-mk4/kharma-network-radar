@@ -9,8 +9,9 @@ Homepage: https://github.com/Mutaz/kharma-network-radar
 Package: kharma-radar
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}, ${python3:Depends}, python3-click, python3-rich, python3-psutil, python3-requests, python3-maxminddb, python3-vt-py, python3-rich-click, python3-flask, python3-flask-cors, python3-scapy
-Description: The Over-Watch Network Monitor
- An elite CLI tool mapping active connections to process IDs,
- geographical locations, and threat intelligence feeds. It runs 
- with 0ms lag due to an offline MaxMind database and features a 
- Time Machine traffic logger, Web UI Dashboard, Auto-Kill IPS, and DPI.
+Description: Kharma Evolution Proactive Defense Suite
+ Kharma Evolution is an elite, proactive network defense suite designed to
+ eliminate "blind spots" in system visibility. It transforms raw network
+ data into actionable security intelligence using real-time radar mapping,
+ deep packet inspection (DPI), offline GeoIP resolution, and automated
+ malware termination through an interactive glassmorphism dashboard.

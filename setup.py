@@ -5,10 +5,10 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="kharma-radar",
-    version="10.1.9",
+    version="10.2.0",
     author="Mutasem-mk4",
     author_email="example@example.com",
-    description="The Over-Watch Network Monitor: An elite CLI tool mapping active connections to process IDs, geographical locations, and threat intelligence.",
+    description="Kharma Evolution: An elite proactive defense suite featuring real-time radar, DPI, Geo-Fencing, and automated malware termination.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/Mutasem-mk4/kharma-network-radar",

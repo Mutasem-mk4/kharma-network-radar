@@ -1,10 +1,10 @@
 # Maintainer: Mutasem (@Mutasem-mk4)
-# Description: Kharma - The Over-Watch Network Monitor
+# Description: Kharma Evolution Proactive Defense Suite
 
 pkgname=kharma
-pkgver=10.0.0
+pkgver=10.2.0
 pkgrel=1
-pkgdesc="An elite CLI tool mapping active connections to process IDs, geographical locations, and threat intelligence."
+pkgdesc="Kharma Evolution: Elite proactive defense suite featuring real-time radar, DPI, Geo-Fencing, and automated malware termination."
 arch=('any')
 url="https://github.com/Mutaz/kharma-network-radar"
 license=('MIT')
