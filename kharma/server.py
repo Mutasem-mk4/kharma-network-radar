@@ -2,6 +2,9 @@ import os
 import sys
 import psutil
 import random
+import secrets
+import logging
+import json
 from flask import Flask, render_template, jsonify, request, make_response
 from flask_cors import CORS
 from flask_talisman import Talisman
@@ -124,7 +127,9 @@ class KharmaWebServer:
         if os.path.exists(config_path):
             with open(config_path, "r") as f:
                 try: return json.load(f)
-                except: pass
+                except Exception as e:
+                    print(f"[SERVER] Settings load error: {e}")
+                    return {}
         return {}
 
     def _setup_routes(self):
@@ -145,8 +150,7 @@ class KharmaWebServer:
             """
             try:
                 self.scanner.scan()
-                self.dpi.update_flow_map(self.scanner.flow_map)
-                
+                self.dpi.update_flow_map(self.scanner.flow_map)                
                 active_connections = self.scanner.get_active_connections()
                 bandwidth_stats = self.dpi.get_bandwidth_report()
                 
@@ -228,8 +232,8 @@ class KharmaWebServer:
                         "remote_ip": remote_ip, # Send raw IP for reporting
                         "location": location,
                         "country_code": country_code,
-                        "lat": lat if lat is not None else (random.uniform(-40, 40) if country_code != 'LOCAL' else None),
-                        "lon": lon if lon is not None else (random.uniform(-40, 40) if country_code != 'LOCAL' else None),
+                        "lat": lat if lat is not None else (float(secrets.randbelow(8000)) / 100 - 40 if country_code != 'LOCAL' else None),
+                        "lon": lon if lon is not None else (float(secrets.randbelow(8000)) / 100 - 40 if country_code != 'LOCAL' else None),
                         "status": status_text,
                         "is_malware": is_malware,
                         "is_community_flagged": is_community_flagged,

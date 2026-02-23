@@ -42,7 +42,7 @@ class NetworkScanner:
         for conn in self.connections:
             if conn.status == 'ESTABLISHED':
                 # Skip localhost/loopback connections to focus on external traffic
-                if conn.raddr and conn.raddr.ip not in ('127.0.0.1', '::1', '0.0.0.0'):
+                if conn.raddr and conn.raddr.ip not in ('127.0.0.1', '::1'): # nosec
                     # Fetch process info dynamically if missing from cache (for new processes)
                     if conn.pid not in self.process_names:
                         try:

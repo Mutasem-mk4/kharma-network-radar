@@ -58,8 +58,8 @@ class TrafficLogger:
                 ''', (datetime.now(), process_name, pid, remote_ip, remote_port, location, is_malware))
                 conn.commit()
                 conn.close()
-            except Exception:
-                pass # Silently fail in background
+            except Exception as e:
+                console.print(f"[dim red]Logger write failed: {e}[/dim red]")
 
     def show_history(self, limit=50, only_malware=False):
         """Prints a rich table of historical connections."""

@@ -25,7 +25,9 @@ class BehaviorEngine:
             try:
                 with open(self.BASELINE_PATH, 'r') as f:
                     return json.load(f)
-            except: pass
+            except Exception as e:
+                # Handle config directory creation errors
+                print(f"[BEHAVIOR] Profile path error: {e}")
         return {}
 
     def _save_baseline(self):

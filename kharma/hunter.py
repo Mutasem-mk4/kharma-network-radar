@@ -27,8 +27,8 @@ class HunterEngine:
                 # File Handles (requires privilege)
                 try:
                     info['open_files'] = [f.path for f in p.open_files()]
-                except:
-                    info['open_files'] = ["Access Denied"]
+                except Exception as e:
+                    info['open_files'] = [f"Access Denied: {e}"]
                 
                 # Heuristic Flags
                 info['heuristics'] = self._analyze_heuristics(p, info)
@@ -78,8 +78,11 @@ class HunterEngine:
             for s in ascii_strings:
                 try:
                     strings.append(s.decode('ascii'))
-                except: pass
+                except Exception as e:
+                    # Log forensic analysis failures
+                    print(f"[HUNTER] Decoding error: {e}")
                 if len(strings) >= limit: break
-        except:
+        except Exception as e:
+            print(f"[HUNTER] String extraction failure: {e}")
             pass
         return strings[:limit]

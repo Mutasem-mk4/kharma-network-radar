@@ -27,8 +27,8 @@ class KharmaDaemon:
                     config = json.load(f)
                     self.telegram_bot_token = config.get("telegram_bot_token")
                     self.telegram_chat_id = config.get("telegram_chat_id")
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"[DAEMON] Config load error: {e}")
 
     def _send_telegram(self, message):
         if self.telegram_bot_token and self.telegram_chat_id:
@@ -36,8 +36,8 @@ class KharmaDaemon:
             payload = {"chat_id": self.telegram_chat_id, "text": message}
             try:
                 requests.post(url, json=payload, timeout=5)
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"[DAEMON] Telegram alert failed: {e}")
 
     def run(self):
         """Infinite loop to monitor network states silently in the background."""
@@ -49,8 +49,10 @@ class KharmaDaemon:
                 app_name="Kharma Radar",
                 timeout=5
             )
-        except Exception:
-            pass # Fails gracefully if OS doesn't support toast notifications natively
+        except Exception as e:
+            # Fails gracefully if OS doesn't support toast notifications natively
+            # but we log it for visibility
+            print(f"[DAEMON] Notification error: {e}")
             
         while True:
             try:
@@ -100,8 +102,8 @@ class KharmaDaemon:
                                     app_name="Kharma Radar",
                                     timeout=10
                                 )
-                            except Exception:
-                                pass
+                            except Exception as e:
+                                print(f"[DAEMON] Notification alert error: {e}")
                                 
                             # Send Telegram Webhook Alert
                             self._send_telegram(alert_msg)

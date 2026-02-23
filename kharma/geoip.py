@@ -37,7 +37,7 @@ class GeoIPResolver:
                 # GitHub mirror for the mmdb file
                 # If git.io link ever breaks, we fallback to a known release asset
                 url = "https://github.com/P3TERX/GeoLite.mmdb/raw/download/GeoLite2-City.mmdb"
-                response = requests.get(url, stream=True)
+                response = requests.get(url, stream=True, timeout=30)
                 response.raise_for_status()
                 
                 with open(self.db_path, 'wb') as f:

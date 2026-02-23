@@ -20,7 +20,8 @@ class CommunityIntel:
             try:
                 with open(self.blacklist_path, 'r') as f:
                     self.blacklist = json.load(f)
-            except Exception:
+            except Exception as e:
+                print(f"[COMMUNITY] Config error: {e}")
                 self.blacklist = {}
         else:
             self.blacklist = {}

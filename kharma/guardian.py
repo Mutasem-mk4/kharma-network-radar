@@ -24,11 +24,13 @@ class GuardianBot:
             try:
                 with open(self.CONFIG_PATH, 'r') as f:
                     return json.load(f)
-            except: pass
+            except Exception as e:
+                # Log load failure instead of silent pass
+                print(f"[GUARDIAN] Config load error: {e}")
         return {
-            "telegram_bot_token": "",
-            "telegram_chat_id": "",
-            "discord_webhook_url": "",
+            "telegram_bot_token": "", # nosec
+            "telegram_chat_id": "", # nosec
+            "discord_webhook_url": "", # nosec
             "alert_on_threat": True,
             "alert_on_block": True,
             "alert_on_dpi": True
@@ -56,8 +58,13 @@ class GuardianBot:
             })
             headers = {"Content-Type": "application/json"}
             conn.request("POST", f"/bot{token}/sendMessage", payload, headers)
-            conn.getresponse()
+            # Add a local timeout check if needed, but conn.request in http.client doesn't take timeout here
+            # Instead, we set timeout on the connection creation if we used it, but let's stick to conn.getcall
+            resp = conn.getresponse()
+            resp.read() # Ensure we read to close
+            conn.close()
         except Exception as e:
+            # Standard print as fallback for background thread logging
             print(f"[GUARDIAN] Telegram error: {e}")
 
     def _send_discord(self, message):

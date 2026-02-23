@@ -23,7 +23,8 @@ class VTEngine:
                     os.chmod(base_dir, 0o700) # Only user can access dir
                 if os.path.exists(self.config_path):
                     os.chmod(self.config_path, 0o600) # Only user can read key
-            except Exception: pass
+            except Exception as e:
+                print(f"[VT] Permission hardening error: {e}")
         # Windows permissions are handled via ACLs, usually inherited safely from %USERPROFILE%
 
     def _load_api_key(self):
@@ -32,8 +33,8 @@ class VTEngine:
                 with open(self.config_path, "r") as f:
                     config = json.load(f)
                     return config.get("vt_api_key")
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"[VT] Hash calculation error for {file_path}: {e}")
         return None
 
     def _init_cache(self):
@@ -74,7 +75,8 @@ class VTEngine:
             res = sha256_hash.hexdigest()
             self._hash_cache[file_path] = res
             return res
-        except Exception:
+        except Exception as e:
+            print(f"[VT] Hash calculation error for {file_path}: {e}")
             return None
 
     def check_hash(self, file_hash):
@@ -96,8 +98,8 @@ class VTEngine:
                     # Cache expiration: 24 hours (86400 seconds)
                     if time() - timestamp < 86400:
                         return malicious, total
-            except sqlite3.Error:
-                pass
+            except sqlite3.Error as e:
+                print(f"[VT] Cache query error: {e}")
 
         # 2. Query VirusTotal API
         # To prevent the server from hanging due to vt-py automatically sleeping on rate limits (4/min),

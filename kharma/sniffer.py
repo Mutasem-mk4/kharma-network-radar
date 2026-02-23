@@ -68,7 +68,7 @@ class DPISniffer:
                     try:
                         # Try to decode as UTF-8 (HTTP, cleartext)
                         payload_data = packet[Raw].load.decode('utf-8', errors='ignore').strip()
-                    except:
+                    except Exception: # nosec
                         payload_data = f"<Binary Data: {len(packet[Raw].load)} bytes>"
                 
                 # Render to screen
@@ -121,3 +121,5 @@ class DPISniffer:
                  console.print(f"[bold red]Capture Error: {e}[/bold red]")
         except KeyboardInterrupt:
             console.print("\n[bold yellow]Capture manually aborted by user.[/bold yellow]")
+        except Exception as e:
+            console.print(f"[SNIFFER] Capture Error: {e}")

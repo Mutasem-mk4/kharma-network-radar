@@ -265,7 +265,9 @@ def daemon_run(protect):
         daemon = KharmaDaemon(auto_kill=protect)
         daemon.run()
     except Exception as e:
-        pass # Die silently in background
+        # Log daemon crash in background
+        with open(os.path.expanduser("~/.kharma/daemon_crash.log"), "a") as f:
+            f.write(f"Daemon crashed: {e}\n")
 
 @cli.group('daemon', epilog="""
 [bold underline]Tactical Background Monitoring:[/bold underline]
@@ -289,7 +291,7 @@ def daemon():
 def daemon_start(protect):
     """Start the background daemon."""
     console.print("[cyan]Spawning Kharma Background Daemon...[/cyan]")
-    import subprocess
+    import subprocess  # nosec B404
     import sys
     script = os.path.abspath(sys.argv[0])
     args = [sys.executable, script, "_daemon_run"]
@@ -303,9 +305,9 @@ def daemon_start(protect):
              
     try:
         if platform.system() == "Windows":
-            subprocess.Popen(args, creationflags=0x00000008) # DETACHED_PROCESS
+            subprocess.Popen(args, creationflags=0x00000008) # nosec
         else:
-            subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+            subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True) # nosec
         console.print("[bold green]Daemon deployed successfully. Monitoring network in the background.[/bold green]")
         if protect:
             console.print("[bold red]Active Defense (Auto-Kill) is ENABLED.[/bold red]")
@@ -324,8 +326,9 @@ def daemon_config(bot_token, chat_id):
         with open(config_path, "r") as f:
             try:
                 config = json.load(f)
-            except:
-                pass
+            except Exception as e:
+                # Log config load error
+                print(f"[DAEMON] Config load error: {e}")
     config["telegram_bot_token"] = bot_token
     config["telegram_chat_id"] = chat_id
     
@@ -359,8 +362,8 @@ def config_vt(api_key):
         try:
             with open(config_path, "r") as f:
                 config_data = json.load(f)
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[CONFIG] Error loading config: {e}")
             
     config_data['vt_api_key'] = api_key
     with open(config_path, "w") as f:

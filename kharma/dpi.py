@@ -58,7 +58,7 @@ class DPIEngine:
             while self.is_running:
                 sniff(prn=self._process_packet, count=5, timeout=1, store=0)
         except Exception as e:
-            print(f"[DPI] Sniffer stopped: {e}")
+            print(f"[DPI] Sniffer loop error: {e}")
             self.is_running = False
             self.available = False
 
@@ -117,11 +117,9 @@ class DPIEngine:
                     summary["proto"] = "HTTP"
                     first_line = text_payload.split('\n')[0].strip()
                     summary["info"] = first_line[:50]
-            except Exception as e:
-                # Log decoding errors for debugging but don't halt inspection
-                # summary["info"] = f"Decoding Error" 
-                pass # Still using pass here if we want to ignore binary data, 
-                     # but Bandit often dislikes this. Let's make it explicit.
+            except Exception: # nosec
+                # Silent pass is intentional for payload decoding failures
+                pass
 
             # Signature Matching
             for alert_name, patterns in self.signatures.items():

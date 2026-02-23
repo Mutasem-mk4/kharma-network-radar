@@ -67,8 +67,8 @@ class ThreatIntelligence:
                     # For simplicity and speed in this version, we'll exact match single IPs (/32)
                     # A robust version would use the `ipaddress` module to check if an IP is IN the subnet
                     self.malicious_ips.add(line.split('/')[0])
-        except Exception:
-            pass
+        except Exception as e:
+            console.print(f"[THREAT] Feed load error: {e}")
 
     def check_ip(self, ip_address):
         """
