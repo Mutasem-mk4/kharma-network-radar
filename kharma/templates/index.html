@@ -688,9 +688,8 @@
                     LIVE PROCESS RADAR
                 </div>
                 <div style="display: flex; gap: 8px; align-items: center;">
-                    <button class="kill-btn" onclick="simulateTraffic()"
-                        style="font-size: 0.65rem; border-color: var(--accent); color: var(--accent);">[ SIMULATE
-                        TRAFFIC ]</button>
+                    <button id="diag-btn" class="kill-btn" onclick="simulateTraffic()"
+                        style="font-size: 0.65rem; border-color: #6366f1; color: #6366f1;">[ RUN DIAGNOSTICS ]</button>
                     <input type="text" id="filter-input" placeholder="Search processes, IPs, or locations..."
                         class="search-box" autocomplete="off" spellcheck="false">
                 </div>
@@ -1063,17 +1062,25 @@
                 .arcDashLength(0.4)
                 .arcDashGap(4)
                 .arcDashAnimateTime(1500)
-                .arcAltitude(0.3);
+                .arcAltitude(0.3)
+                .atmosphereColor('#10b981')
+                .atmosphereDayLightIntensity(0.1);
 
             globe.controls().autoRotate = true;
             globe.controls().autoRotateSpeed = 0.5;
             globe.pointOfView({ lat: myLat, lng: myLon, altitude: 2.5 }, 0);
 
+            // Set opacity to ensure it's visible against background
+            mapEl.style.opacity = "1";
+
             // Handle window resize
             window.addEventListener('resize', () => {
-                globe.width(mapEl.clientWidth);
-                globe.height(mapEl.clientHeight);
+                if (globe) {
+                    globe.width(mapEl.clientWidth);
+                    globe.height(mapEl.clientHeight);
+                }
             });
+            console.log("Kharma Sentinel Map Engine Initialized.");
         }
 
         // Fetch API
