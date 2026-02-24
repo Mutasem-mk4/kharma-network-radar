@@ -220,9 +220,6 @@ class KharmaWebServer:
         @self.app.route('/')
         def index():
             """Serve the main Kharma Dashboard UI."""
-            if not session.get('authenticated'):
-                return redirect(url_for('login'))
-                
             resp = make_response(render_template('index.html', session_token=self.secret_token))
             # Force anti-cache for security and fresh data
             resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
@@ -296,7 +293,7 @@ class KharmaWebServer:
                                 if country_code != "N/A" and country_code in blocked_countries and remote_ip not in blocked_ips:
                                     if self.shield.block_ip(remote_ip):
                                         blocked_ips.append(remote_ip)
-                                        self.db.add_event("BLOCKED", remote_ip, conn['name'], location, f"Geo-Fence Policy: {country_code}", "high")
+                                        self.forensics.log("BLOCKED", remote_ip, conn['name'], location, f"Geo-Fence Policy: {country_code}", "high")
                             else:
                                 location = "Tuple Error"
                                 country_code = "N/A"
@@ -436,7 +433,6 @@ class KharmaWebServer:
                 return jsonify({"status": "error", "message": str(e), "trace": traceback.format_exc()}), 500
 
         @self.app.route('/api/kill/<int:pid>', methods=['DELETE'])
-        @self._require_auth
         def kill_process(pid):
             """API Endpoint to instantly terminate a process via the Web UI."""
             try:
@@ -603,7 +599,6 @@ class KharmaWebServer:
             return jsonify({"status": "success", "message": f"✅ Added {len(demo_events)} demo events to history."}), 200
 
         @self.app.route('/api/report/export', methods=['GET'])
-        @self._require_auth
         def export_security_report():
             """Generates and serves a premium security report."""
             from flask import Response
