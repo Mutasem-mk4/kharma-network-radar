@@ -12,10 +12,12 @@ class ShieldManager:
         self.rule_prefix = "KHARMA_BLOCK_"
 
     def block_ip(self, ip):
-        """Creates a firewall rule to drop all traffic to/from the target IP."""
+        """Creates a firewall rule to drop all traffic to/from the target IP or CIDR."""
         if not ip: return False
         
-        rule_name = f"{self.rule_prefix}{ip}"
+        # Sanitize rule name for CIDR blocks (e.g. 1.2.3.0/24 -> 1_2_3_0_24)
+        safe_name = ip.replace('.', '_').replace('/', '_')
+        rule_name = f"{self.rule_prefix}{safe_name}"
         
         if self.os_type == "Windows":
             # Command: netsh advfirewall firewall add rule name="KHARMA_BLOCK_1.1.1.1" dir=out action=block remoteip=1.1.1.1
@@ -47,10 +49,11 @@ class ShieldManager:
         return False
 
     def unblock_ip(self, ip):
-        """Removes the firewall rules associated with the target IP."""
+        """Removes the firewall rules associated with the target IP or CIDR."""
         if not ip: return False
         
-        rule_name = f"{self.rule_prefix}{ip}"
+        safe_name = ip.replace('.', '_').replace('/', '_')
+        rule_name = f"{self.rule_prefix}{safe_name}"
         
         if self.os_type == "Windows":
             try:

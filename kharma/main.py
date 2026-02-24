@@ -75,7 +75,7 @@ click.rich_click.STYLE_EPILOG_TEXT = "white"
 
 HEADER = r"""
 +---------------------------------------+
-|   K  H  A  R  M  A     R  A  D  A  R  |
+|     K  H  A  R  M  A   S  E  N  T  I  N   |
 +---------------------------------------+
 |  >>  THE OVER-WATCH NETWORK MONITOR <<|
 +---------------------------------------+"""
@@ -87,7 +87,7 @@ FOOTER = "[dim italic]Run 'kharma [CMD] --help' for module documentation.[/dim i
 def cli(ctx):
     """\b
 +---------------------------------------+
-|   K  H  A  R  M  A     R  A  D  A  R  |
+|     K  H  A  R  M  A   S  E  N  T  I  N   |
 +---------------------------------------+
 |  >>  THE OVER-WATCH NETWORK MONITOR <<|
 +---------------------------------------+
@@ -98,7 +98,7 @@ def cli(ctx):
 [cyan]  [ Shield] [/cyan] [white]kharma run --protect[/white]
 [cyan]  [ Silent] [/cyan] [white]kharma daemon start[/white]
 
-[dim]KHARMA ENGINE v10.1.8[/dim]
+[dim]KHARMA SENTINEL v10.2.0[/dim]
 Reveals hidden connections and bad karma processes.
 """
     if ctx.invoked_subcommand is None:
@@ -177,7 +177,7 @@ def run_radar(log_enabled=False, proc_filter=None, malware_only=False, auto_kill
             time.sleep(2)
 
     try:
-        console.print("[cyan]Initializing Kharma Radar...[/cyan]")
+        console.print("[cyan]Initializing Kharma Sentinel...[/cyan]")
         console.print("[dim]Checking Intel Databases...[/dim]")
         scanner = NetworkScanner()
         geoip = GeoIPResolver()
@@ -372,6 +372,32 @@ def config_vt(api_key):
     console.print(f"[bold green]VirusTotal API Key registered successfully![/bold green]")
     console.print("[cyan]Kharma will now natively hash all external socket connections and verify them against 70+ AV engines in the cloud.[/cyan]")
 
+@config.command('web-pass', epilog="""
+    [bold underline]Examples:[/bold underline]
+    [cyan]kharma config web-pass mysecurepassword[/cyan]    Register a new dashboard access key.
+""")
+@click.argument('password')
+def config_web_pass(password):
+    """Set the Web Dashboard access password for remote authentication."""
+    import json
+    config_path = os.path.expanduser("~/.kharma/daemon_config.json")
+    os.makedirs(os.path.dirname(config_path), exist_ok=True)
+    
+    config_data = {}
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, "r") as f:
+                config_data = json.load(f)
+        except Exception as e:
+            print(f"[CONFIG] Error loading config: {e}")
+            
+    config_data['web_password'] = password
+    with open(config_path, "w") as f:
+        json.dump(config_data, f)
+        
+    console.print(f"[bold green]Sentinel Access Key updated successfully![/bold green]")
+    console.print("[cyan]Use this key to authenticate at the web login screen.[/cyan]")
+
 @cli.command('web', epilog="""
 [bold underline]Description:[/bold underline]
 Launches a browser-based Command Center with global IP mapping,
@@ -404,7 +430,7 @@ def web_cmd(port):
             
     server = KharmaWebServer(port=port)
     
-    console.print(f"[bold cyan]Initializing Kharma Web Dashboard...[/bold cyan]")
+    console.print(f"[bold cyan]Initializing Kharma Sentinel Web Dashboard...[/bold cyan]")
     console.print(f"[dim]Spawning background data scanner loop...[/dim]")
     
     # Delay browser opening slightly so server can bind the port

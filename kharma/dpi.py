@@ -12,6 +12,25 @@ except Exception as e:
     print(f"[DPI] Scapy import failed: {e}. Some features will be limited.")
     SCAPY_AVAILABLE = False
 
+try:
+    from kharma.ebpf_spy import EBPSpy
+except ImportError:
+    try:
+        from ebpf_spy import EBPSpy
+    except ImportError:
+        EBPSpy = None
+
+try:
+    from kharma.fingerprint import FingerprintEngine
+    from kharma.yara_scanner import YaraScanner
+except ImportError:
+    try:
+        from fingerprint import FingerprintEngine
+        from yara_scanner import YaraScanner
+    except ImportError:
+        FingerprintEngine = None
+        YaraScanner = None
+
 class DPIEngine:
     """
     Advanced Deep Packet Inspection (DPI) Engine for Kharma.
@@ -27,9 +46,18 @@ class DPIEngine:
         # Bandwidth Tracking
         self.flow_map = {} # (ip, port) -> pid
         self.bandwidth_raw = defaultdict(lambda: {"in": 0, "out": 0})
+        self.recent_payloads = {} # pid -> last raw payload (bytes)
         self.last_stats = {} # pid -> {"in_kbps": X, "out_kbps": Y}
         self.last_calc_time = time.time()
         
+        # Sentinel: eBPF Integration
+        self.ebpf = EBPSpy() if EBPSpy else None
+        self.last_ebpf_stats = {} # pid -> last_total_bytes
+        
+        # Sentinel: Phase 2 Engines
+        self.fingerprint = FingerprintEngine() if FingerprintEngine else None
+        self.yara = YaraScanner() if YaraScanner else None
+
         # Signatures for common web attacks
         self.signatures = {
             "SQL Injection": [b"SELECT", b"UNION", b"INSERT", b"UPDATE", b"DELETE", b"DROP TABLE"],
@@ -83,6 +111,10 @@ class DPIEngine:
                 self.bandwidth_raw[pid]["out"] += payload_len
             else:
                 self.bandwidth_raw[pid]["in"] += payload_len
+            
+            # Sentinel: Store a sample of the raw payload for Entropy analysis
+            if pkt.haslayer(Raw):
+                self.recent_payloads[pid] = pkt[Raw].load[:1024] # Store first 1KB
 
         summary = {
             "time": time.strftime('%H:%M:%S'),
@@ -121,7 +153,22 @@ class DPIEngine:
                 # Silent pass is intentional for payload decoding failures
                 pass
 
-            # Signature Matching
+            # JA3 Fingerprinting (TLS Handshake)
+            if self.fingerprint:
+                ja3 = self.fingerprint.extract_ja3(payload)
+                if ja3:
+                    software = self.fingerprint.get_software_name(ja3)
+                    summary["info"] = f"Client: {software} (JA3:{ja3[:8]})"
+                    summary["ja3"] = ja3
+
+            # YARA Scanning (MALWARE Signature Match)
+            if self.yara and self.yara.available:
+                matches = self.yara.scan(payload)
+                if matches:
+                    summary["severity"] = "danger"
+                    summary["alert"] = f"YARA: {', '.join(matches)}"
+
+            # Signature Matching (Legacy)
             for alert_name, patterns in self.signatures.items():
                 for p in patterns:
                     if p in payload:
@@ -136,19 +183,45 @@ class DPIEngine:
         """Returns the current buffer of analyzed packets."""
         return list(self.packet_buffer)
 
+    def get_recent_payloads(self):
+        """Returns the captured payload samples and clears the buffer."""
+        tmp = self.recent_payloads.copy()
+        self.recent_payloads.clear()
+        return tmp
+
     def get_bandwidth_report(self):
-        """Calculates KB/s per process since the last call and resets raw counters."""
+        """Calculates KB/s per process since last call. Merges kernel eBPF data if available."""
         now = time.time()
         delta = now - self.last_calc_time
         if delta <= 0: return self.last_stats
         
         report = {}
+        # 1. Start with raw Scapy/DPI stats
         for pid, counters in self.bandwidth_raw.items():
             report[pid] = {
                 "in_kbps": round((counters["in"] / 1024) / delta, 2),
                 "out_kbps": round((counters["out"] / 1024) / delta, 2)
             }
         
+        # 2. Augment/Correct with eBPF Kernel data (Linux only)
+        if self.ebpf and self.ebpf.enabled:
+            current_ebpf = self.ebpf.get_stats()
+            for pid, total_bytes in current_ebpf.items():
+                last_total = self.last_ebpf_stats.get(pid, total_bytes)
+                diff = max(0, total_bytes - last_total)
+                
+                # eBPF currently tracks outbound (tcp_sendmsg)
+                ebpf_kbps = round((diff / 1024) / delta, 2)
+                
+                if pid in report:
+                    # Prefer eBPF as it's more accurate/performant, but keep Scapy if eBPF is 0
+                    if ebpf_kbps > 0:
+                        report[pid]["out_kbps"] = ebpf_kbps
+                else:
+                    report[pid] = {"in_kbps": 0, "out_kbps": ebpf_kbps}
+            
+            self.last_ebpf_stats = current_ebpf
+
         # Reset raw counters for next interval
         self.bandwidth_raw.clear()
         self.last_calc_time = now

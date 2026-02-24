@@ -5,9 +5,10 @@ import random
 import secrets
 import logging
 import json
-from flask import Flask, render_template, jsonify, request, make_response
+from flask import Flask, render_template, jsonify, request, make_response, session, redirect, url_for
 from flask_cors import CORS
 from flask_talisman import Talisman
+from flask_socketio import SocketIO, emit
 
 # Attempt to load Kharma internal modules depending on execution context
 try:
@@ -23,6 +24,9 @@ try:
     from kharma.hunter import HunterEngine
     from kharma.behavior import BehaviorEngine
     from kharma.swarm import SwarmEngine
+    from kharma.honeypot import HoneypotDecoy
+    from kharma.asn_blocker import ASNBlocker
+    from kharma.report_generator import ReportGenerator
 except ImportError:
     from scanner import NetworkScanner
     from geoip import GeoIPResolver
@@ -36,6 +40,7 @@ except ImportError:
     from hunter import HunterEngine
     from behavior import BehaviorEngine
     from swarm import SwarmEngine
+    from report_generator import ReportGenerator
 
 class KharmaWebServer:
     def __init__(self, host="127.0.0.1", port=8085):
@@ -52,6 +57,7 @@ class KharmaWebServer:
             template_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates')
             
         self.app = Flask(__name__, template_folder=template_dir, static_folder=template_dir)
+        self.app.secret_key = self.secret_token # Use the same token for session signing
         
         # Security Hardening: Lockdown CORS to strict localhost
         CORS(self.app, resources={r"/api/*": {"origins": ["http://127.0.0.1:*", "http://localhost:*"]}})
@@ -86,6 +92,8 @@ class KharmaWebServer:
         }
         Talisman(self.app, content_security_policy=csp, force_https=False)
         
+        self.socketio = SocketIO(self.app, cors_allowed_origins="*")
+        
         self._setup_engines()
         self._setup_routes()
 
@@ -95,10 +103,15 @@ class KharmaWebServer:
         return secrets.token_hex(24)
 
     def _require_auth(self, f):
-        """Security Decorator: Ensures the request carries the correct session token."""
+        """Security Decorator: Ensures the request carries the correct session token or session cookie."""
         from functools import wraps
         @wraps(f)
         def decorated_function(*args, **kwargs):
+            # 1. Check for Session Cookie (Web UI)
+            if session.get('authenticated'):
+                return f(*args, **kwargs)
+                
+            # 2. Check for Token Header/Param (Internal/CLI)
             token = request.headers.get('X-Kharma-Token') or request.args.get('token')
             if not token or token != self.secret_token:
                 return jsonify({"status": "error", "message": "Unauthorized. Secure Session Required."}), 403
@@ -120,6 +133,77 @@ class KharmaWebServer:
         self.behavior = BehaviorEngine()
         self.hunter = HunterEngine()
         self.swarm = SwarmEngine(self.secret_token)
+        self.report_gen = ReportGenerator(self.forensics)
+        
+        # Sentinel: Honeypot Auto-Defense
+        self.honeypot = HoneypotDecoy()
+        self.honeypot.start(callback=self._honeypot_callback)
+        
+        # Sentinel: ASN Mass-Blocking
+        self.asn_blocker = ASNBlocker(self.shield)
+        
+        # Sentinel: WebSocket Handlers
+        self._setup_sockets()
+
+    def _setup_sockets(self):
+        @self.socketio.on('connect')
+        def handle_connect():
+            print("[MOBILE] Companion App Linked via WebSocket.")
+            emit('auth_status', {'status': 'linked', 'identity': 'Kharma-Sentinel-Core'})
+
+        @self.socketio.on('get_telemetry')
+        def handle_telemetry(data):
+            # Check auth token from data
+            token = data.get('token')
+            if token == self.secret_token:
+                # Send back summary data
+                emit('telemetry_update', {
+                    'connections': len(self.scanner.get_active_connections()),
+                    'threats': len(self.forensics.get_events(event_type="THREAT")),
+                    'blocked': len(self.shield.list_blocked())
+                })
+
+        @self.socketio.on('remote_kill')
+        def handle_kill(data):
+            token = data.get('token')
+            pid = data.get('pid')
+            if token == self.secret_token and pid:
+                print(f"[SENTINEL] REMOTE COMMAND: KILL PID {pid}")
+                # Logic from kill_process route
+                import psutil
+                try:
+                    p = psutil.Process(pid)
+                    p.terminate()
+                    emit('command_result', {'status': 'success', 'message': f'Process {pid} terminated.'})
+                except Exception as e:
+                    emit('command_result', {'status': 'error', 'message': str(e)})
+
+        @self.socketio.on('remote_shield')
+        def handle_shield(data):
+            token = data.get('token')
+            ip = data.get('ip')
+            if token == self.secret_token and ip:
+                print(f"[SENTINEL] REMOTE COMMAND: SHIELD IP {ip}")
+                if self.shield.block_ip(ip):
+                    emit('command_result', {'status': 'success', 'message': f'IP {ip} isolated.'})
+                else:
+                    emit('command_result', {'status': 'error', 'message': 'Shield failed.'})
+
+    def _honeypot_callback(self, ip, port):
+        """Autonomous Response: Block any IP that hits a honeypot port and its entire ASN."""
+        print(f"[SENTINEL] HONEYPOT TRIGGERED BY {ip} ON PORT {port}. ISOLATING ASN...")
+        # Mass block the range for immediate suppression
+        blocked_count = self.asn_blocker.mass_block_asn(ip)
+        
+        self.guardian.alert_blocked(ip, reason=f"Honeypot Decoy (Port {port}) + ASN MASS BLOCK ({blocked_count} ranges)")
+        self.forensics.log(
+            event_type="BLOCKED",
+            ip=ip,
+            process="Honeypot Ghost",
+            location="[LOCAL TRAP]",
+            detail=f"Honeypot Port {port} Triggered Mass-Block",
+            severity="critical"
+        )
 
     def _load_settings(self):
         import json, os
@@ -136,11 +220,43 @@ class KharmaWebServer:
         @self.app.route('/')
         def index():
             """Serve the main Kharma Dashboard UI."""
+            if not session.get('authenticated'):
+                return redirect(url_for('login'))
+                
             resp = make_response(render_template('index.html', session_token=self.secret_token))
             # Force anti-cache for security and fresh data
             resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
             resp.headers['Pragma'] = 'no-cache'
             return resp
+
+        @self.app.route('/login', methods=['GET'])
+        def login():
+            """Serve the Kharma Sentinel Login page."""
+            if session.get('authenticated'):
+                return redirect(url_for('index'))
+            return render_template('login.html')
+
+        @self.app.route('/api/login', methods=['POST'])
+        def api_login():
+            """Authentication Endpoint."""
+            data = request.get_json()
+            username = data.get('username')
+            password = data.get('password')
+            
+            settings = self._load_settings()
+            stored_password = settings.get('web_password', 'sentinel123') # Default password if not set
+            
+            if username == 'admin' and password == stored_password:
+                session['authenticated'] = True
+                return jsonify({"status": "success", "message": "Authenticated."}), 200
+            
+            return jsonify({"status": "error", "message": "Invalid credentials."}), 401
+
+        @self.app.route('/logout')
+        def logout():
+            """Clear the secure session."""
+            session.pop('authenticated', None)
+            return redirect(url_for('login'))
 
         @self.app.route('/api/radar', methods=['GET'])
         def get_live_radar():
@@ -153,6 +269,7 @@ class KharmaWebServer:
                 self.dpi.update_flow_map(self.scanner.flow_map)                
                 active_connections = self.scanner.get_active_connections()
                 bandwidth_stats = self.dpi.get_bandwidth_report()
+                payload_samples = self.dpi.get_recent_payloads()
                 
                 settings = self._load_settings()
                 blocked_countries = settings.get('blocked_countries', [])
@@ -219,7 +336,8 @@ class KharmaWebServer:
                         conn.get('name', 'Unknown'), 
                         bandwidth_stats.get(conn['pid'], {}).get('in_kbps', 0),
                         bandwidth_stats.get(conn['pid'], {}).get('out_kbps', 0),
-                        country_code
+                        country_code,
+                        payload=payload_samples.get(conn['pid'])
                     )
 
                     # Assemble JSON Row
@@ -256,11 +374,15 @@ class KharmaWebServer:
                         if vt_malicious > 5: risk_score += 10
                         if is_malware: risk_score += 10
                         
+                        # Apply AI-based risk additions
+                        if ai_results['level'] == 'CRITICAL': risk_score += 15
+                        if ai_results['level'] == 'SUSPICIOUS': risk_score += 5
+                        
                         if risk_score >= 10:
-                            print(f"[SHIELD] AUTO-BLOCKING HIGH RISK IP: {remote_ip} (Score: {risk_score})")
+                            print(f"[SHIELD] Sentinel AI Trigger: Blocking {remote_ip} (Score: {risk_score})")
                             self.shield.block_ip(remote_ip)
                             blocked_ips.append(remote_ip)
-                            self.guardian.alert_blocked(remote_ip, reason=f"Auto-Shield (Score: {risk_score})")
+                            self.guardian.alert_blocked(remote_ip, reason=f"Sentinel AI Detection: {ai_results['message']}")
                             self.forensics.log(
                                 event_type="BLOCKED",
                                 ip=remote_ip,
@@ -269,6 +391,20 @@ class KharmaWebServer:
                                 detail=f"Risk Score: {risk_score}",
                                 severity="high"
                             )
+                            
+                            # --- Autonomous Geofencing / Mass Block ---
+                            # If the threat is severe (Score >= 20) or from a blocked country, isolate the entire range
+                            if risk_score >= 20 or (country_code in blocked_countries and risk_score >= 10):
+                                print(f"[SENTINEL] TRIGGERING MASS BLOCK FOR: {remote_ip} ({country_code})")
+                                self.asn_blocker.mass_block_asn(remote_ip)
+                                self.forensics.log(
+                                    event_type="BLOCKED",
+                                    ip=remote_ip,
+                                    process=conn.get('name', 'Unknown'),
+                                    location=location,
+                                    detail=f"Automated Geofencing: ASN Isolated",
+                                    severity="critical"
+                                )
 
                     # 6. Guardian + Forensics Threat Logging
                     if is_malware:
@@ -464,26 +600,23 @@ class KharmaWebServer:
             except Exception as e:
                 return jsonify({"status": "error", "message": str(e)}), 500
 
-        @self.app.route('/api/history/demo', methods=['POST'])
-        def add_demo_events():
-            """Inserts realistic demo events for UI demonstration purposes."""
-            demo_events = [
-                {"type": "THREAT",         "ip": "185.220.101.47", "process": "chrome.exe",    "location": "Moscow, RU",      "detail": "Known Tor Exit Node",            "severity": "critical"},
-                {"type": "BLOCKED",        "ip": "194.165.16.117", "process": "edge.exe",      "location": "Tehran, IR",      "detail": "Risk Score: 30",                 "severity": "high"},
-                {"type": "COMMUNITY_FLAG", "ip": "45.142.212.100", "process": "firefox.exe",   "location": "Amsterdam, NL",   "detail": "7 community reports",            "severity": "medium"},
-                {"type": "THREAT",         "ip": "198.54.117.200", "process": "python.exe",    "location": "New York, US",    "detail": "VT:15/72",                       "severity": "critical"},
-                {"type": "BLOCKED",        "ip": "91.108.4.50",    "process": "wsmprovhost.exe","location": "Singapore, SG",  "detail": "Risk Score: 20",                 "severity": "high"},
-                {"type": "COMMUNITY_FLAG", "ip": "5.188.206.14",   "process": "svchost.exe",   "location": "Saint Petersburg, RU", "detail": "4 community reports",       "severity": "medium"},
-                {"type": "THREAT",         "ip": "31.13.92.36",    "process": "chrome.exe",    "location": "Dublin, IE",      "detail": "Threat Intel Match",             "severity": "critical"},
-            ]
-            import time
-            for ev in demo_events:
-                self.forensics.log(
-                    event_type=ev["type"], ip=ev["ip"],
-                    process=ev["process"], location=ev["location"],
-                    detail=ev["detail"], severity=ev["severity"]
-                )
             return jsonify({"status": "success", "message": f"✅ Added {len(demo_events)} demo events to history."}), 200
+
+        @self.app.route('/api/report/export', methods=['GET'])
+        @self._require_auth
+        def export_security_report():
+            """Generates and serves a premium security report."""
+            from flask import Response
+            try:
+                html_content = self.report_gen.generate_html_report()
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                return Response(
+                    html_content,
+                    mimetype='text/html',
+                    headers={"Content-Disposition": f"attachment;filename=sentinel_report_{timestamp}.html"}
+                )
+            except Exception as e:
+                return jsonify({"status": "error", "message": str(e)}), 500
 
     def start(self):
         """Start the Flask internal server. This is a blocking call."""
@@ -492,7 +625,7 @@ class KharmaWebServer:
         log = logging.getLogger('werkzeug')
         log.setLevel(logging.ERROR)
         
-        self.app.run(host=self.host, port=self.port, debug=False)
+        self.socketio.run(self.app, host=self.host, port=self.port, debug=False)
 
 if __name__ == '__main__':
     import platform, sys, os
