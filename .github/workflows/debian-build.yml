@@ -18,10 +18,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y dpkg-dev debhelper dh-python python3-all python3-setuptools python3-scapy python3-psutil python3-rich python3-requests python3-flask
-          # Try to install maxminddb if available, otherwise we might need to rely on pip for build if it's just a python dependency
-          sudo apt-get install -y python3-maxminddb || echo "python3-maxminddb not found in apt, checking pip"
-          pip3 install maxminddb # Just in case it's needed for the build process itself if setup.py uses it
+          sudo apt-get install -y dpkg-dev debhelper dh-python python3-all python3-setuptools python3-scapy python3-psutil python3-rich python3-requests python3-flask python3-maxminddb
 
       - name: Build Debian Package
         run: |

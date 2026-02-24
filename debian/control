@@ -2,7 +2,7 @@ Source: kharma-radar
 Section: net
 Priority: optional
 Maintainer: Mutasem Alashkar <mutasem@example.com>
-Build-Depends: debhelper (>= 10), dh-python, python3-all, python3-setuptools, python3-scapy, python3-psutil, python3-rich, python3-requests, python3-maxminddb
+Build-Depends: debhelper (>= 11), dh-python, python3-all, python3-setuptools, python3-scapy, python3-psutil, python3-rich, python3-requests, python3-flask, python3-maxminddb
 Standards-Version: 4.1.4
 Homepage: https://mutasem-mk4.github.io/kharma-network-radar/
 
