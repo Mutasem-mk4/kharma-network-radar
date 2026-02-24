@@ -18,7 +18,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y dpkg-dev debhelper dh-python python3-all python3-setuptools
+          sudo apt-get install -y dpkg-dev debhelper dh-python python3-all python3-setuptools python3-scapy python3-psutil python3-rich python3-requests python3-maxminddb python3-flask
 
       - name: Build Debian Package
         run: |
