@@ -37,7 +37,7 @@ Kharma is not just a monitor; it's an **Active Defense System**. It acts as an a
 
 ### 🆕 Option 1: Standalone Portable EXE (Easiest)
 Download the zero-dependency executable. No Python installation required!
-- **Download:** [kharma.exe (v10.2.0)](https://github.com/Mutasem-mk4/kharma-network-radar/releases)
+- **Download:** [kharma.exe (v10.2.4)](https://github.com/Mutasem-mk4/kharma-network-radar/releases)
 - **Usage:** Just double-click to run or use it from the command line.
 
 ### 🆕 Option 2: Smart Windows Installer (Automated)
