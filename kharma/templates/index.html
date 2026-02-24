@@ -687,7 +687,7 @@
                     LIVE PROCESS RADAR
                 </div>
                 <input type="text" id="filter-input" placeholder="Search processes, IPs, or locations..."
-                    class="search-box">
+                    class="search-box" autocomplete="off" spellcheck="false">
             </div>
 
             <div class="table-scroll">
@@ -1213,7 +1213,7 @@
                 globe.arcsData(gArcs);
             }
             radarBody.innerHTML = html || '<tr><td colspan="7" style="text-align:center; padding: 3rem; color: var(--text-dim);">No active external connections detected. Monitoring sensors idle...</td></tr>';
-            connCountElement.innerText = counter;
+            connCountElement.innerText = allConnections.length;
             vtStatusElement.innerText = vtActive ? "LINKED" : "STANDBY";
             vtStatusElement.style.color = vtActive ? "var(--accent)" : "var(--text-dim)";
 
@@ -1754,6 +1754,13 @@
             });
             updateSwarm();
         }
+
+        try {
+            // Anti-Autofill: Clear 'admin' or junk values from search box
+            if (filterInput.value.toLowerCase() === 'admin' || filterInput.value.toLowerCase() === 'sentinel123') {
+                filterInput.value = '';
+            }
+        } catch (e) { }
 
         try { initMap(); } catch (e) { console.error("initMap error", e); }
         try { initChart(); } catch (e) { console.error("initChart error", e); }
