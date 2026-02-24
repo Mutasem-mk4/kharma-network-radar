@@ -1,0 +1,37 @@
+name: Build Windows Installer
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build_win:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip pyinstaller
+          pip install -r requirements.txt || pip install click rich psutil requests maxminddb vt-py rich-click Flask Flask-Cors scapy flask-talisman
+
+      - name: Build exe with PyInstaller
+        run: |
+          pyinstaller --onefile --name kharma kharma/main.py
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: dist/kharma.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
