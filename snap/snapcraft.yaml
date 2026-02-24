@@ -1,6 +1,6 @@
 name: kharma-radar
 base: core22
-version: '10.2.6'
+version: '10.2.7'
 summary: AI-powered Network Radar and Host Intrusion Prevention System
 description: |
   Kharma Evolution is an elite, proactive network defense suite that monitors
@@ -49,8 +49,7 @@ parts:
   kharma-radar:
     plugin: python
     source: .
-    python-requirements:
-      - requirements.txt
+    # Removed python-requirements list to avoid pip install error
     build-packages:
       - python3-dev
       - libpcap-dev
