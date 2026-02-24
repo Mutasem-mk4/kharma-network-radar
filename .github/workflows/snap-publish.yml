@@ -12,6 +12,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libpcap-dev python3-dev gcc findutils
+
       - name: Build snap
         uses: snapcore/action-build@v1
         id: build
