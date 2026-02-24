@@ -1,6 +1,6 @@
 name: kharma-radar
 base: core20
-version: '10.2.13'
+version: '10.2.14'
 summary: AI-powered Network Radar and Host Intrusion Prevention System
 description: |
   Kharma Evolution is an elite, proactive network defense suite that monitors
