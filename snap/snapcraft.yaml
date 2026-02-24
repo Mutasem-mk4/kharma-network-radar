@@ -1,6 +1,6 @@
 name: kharma-radar
 base: core22
-version: '10.2.8'
+version: '10.2.9'
 summary: AI-powered Network Radar and Host Intrusion Prevention System
 description: |
   Kharma Evolution is an elite, proactive network defense suite that monitors
@@ -47,15 +47,24 @@ apps:
 
 parts:
   kharma-radar:
-    plugin: python
+    plugin: dump
     source: .
-    python-packages:
-      - .
     build-packages:
       - python3-dev
+      - python3-pip
+      - python3-venv
       - libpcap-dev
       - gcc
     stage-packages:
+      - python3
       - libpcap0.8
       - ncat
       - ufw
+    override-build: |
+      mkdir -p $SNAPCRAFT_PART_INSTALL/bin
+      python3 -m venv $SNAPCRAFT_PART_INSTALL/venv
+      $SNAPCRAFT_PART_INSTALL/venv/bin/pip install --upgrade pip setuptools wheel
+      $SNAPCRAFT_PART_INSTALL/venv/bin/pip install .
+      # Link the entry point to bin/
+      ln -s ../venv/bin/kharma $SNAPCRAFT_PART_INSTALL/bin/kharma
+
