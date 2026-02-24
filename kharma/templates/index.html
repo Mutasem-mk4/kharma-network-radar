@@ -623,8 +623,9 @@
 
     <header class="glass-panel">
         <div class="brand">
-            <h1 class="flex items-center gap-3">
-                KHARMA<span>_SENTINEL</span>
+            <h1
+                style="letter-spacing: 0.4em; font-weight: 800; font-size: 1.2rem; text-transform: uppercase; color: var(--accent);">
+                KHARMA <span style="color: var(--text-main); font-weight: 400;">SENTINEL</span>
             </h1>
             <div style="font-size: 0.6rem; color: var(--text-dim); margin-top: 2px;">V10.2.15-EVOLUTION PROACTIVE
                 DEFENSE
@@ -690,8 +691,8 @@
                 <div style="display: flex; gap: 8px; align-items: center;">
                     <button id="diag-btn" class="kill-btn" onclick="simulateTraffic()"
                         style="font-size: 0.65rem; border-color: #6366f1; color: #6366f1;">[ RUN DIAGNOSTICS ]</button>
-                    <input type="text" id="filter-input" placeholder="Search processes, IPs, or locations..."
-                        class="search-box" autocomplete="off" spellcheck="false">
+                    <input type="text" id="secure-search-input" placeholder="Search data..." class="search-box"
+                        autocomplete="one-time-code" spellcheck="false">
                 </div>
             </div>
 
@@ -1051,9 +1052,9 @@
             const mapEl = document.getElementById('radar-map');
             globe = Globe()
                 (mapEl)
-                .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-night.jpg')
-                .bumpImageUrl('https://unpkg.com/three-globe/example/img/earth-topology.png')
-                .backgroundImageUrl('https://unpkg.com/three-globe/example/img/night-sky.png')
+                .globeImageUrl('//unpkg.com/three-globe/example/img/earth-night.jpg')
+                .bumpImageUrl('//unpkg.com/three-globe/example/img/earth-topology.png')
+                .backgroundImageUrl('//unpkg.com/three-globe/example/img/night-sky.png')
                 .pointColor('color')
                 .pointAltitude(0.01)
                 .pointRadius(0.8)
@@ -1068,6 +1069,12 @@
 
             globe.controls().autoRotate = true;
             globe.controls().autoRotateSpeed = 0.5;
+
+            // Critical: Force dimensions if they are 0
+            const w = mapEl.clientWidth || 800;
+            const h = mapEl.clientHeight || 350;
+            globe.width(w).height(h);
+
             globe.pointOfView({ lat: myLat, lng: myLon, altitude: 2.5 }, 0);
 
             // Set opacity to ensure it's visible against background
@@ -1087,18 +1094,28 @@
         async function updateRadar() {
             try {
                 const response = await fetch('/api/radar');
+                if (!response.ok) throw new Error(`HTTP_${response.status}`);
                 const json = await response.json();
                 if (json.status === 'success') {
                     allConnections = json.data;
                     renderUI();
+                } else {
+                    console.error("API Error:", json.message);
                 }
             } catch (e) {
-                console.error("API Leak Error:", e);
+                console.error("API Communication Failure:", e);
+                // If it fails repeatedly, show a hint
+                if (!window._apiErrCount) window._apiErrCount = 0;
+                window._apiErrCount++;
+                if (window._apiErrCount > 5) {
+                    radarBody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 2rem; color: var(--danger);">SENSOR OFFLINE (Backend connection lost). Retrying...</td></tr>';
+                }
             }
         }
 
         function renderUI() {
-            const filter = filterInput.value.toLowerCase();
+            const searchBox = document.getElementById('secure-search-input');
+            const filter = searchBox.value.toLowerCase();
             let html = "";
             let counter = 0;
             let vtActive = false;
@@ -1824,7 +1841,12 @@
 
         try { initMap(); } catch (e) { console.error("initMap error", e); }
         try { initChart(); } catch (e) { console.error("initChart error", e); }
-        try { filterInput.addEventListener('input', renderUI); } catch (e) { console.error("filter input error", e); }
+        try {
+            const searchBox = document.getElementById('secure-search-input');
+            searchBox.addEventListener('input', renderUI);
+            // Critical Anti-Autofill
+            if (searchBox.value.length > 0) searchBox.value = '';
+        } catch (e) { console.error("search setup error", e); }
         try { updateRadar(); setInterval(updateRadar, 2000); } catch (e) { console.error("radar loop error", e); }
         try { updatePackets(); setInterval(updatePackets, 1000); } catch (e) { console.error("packet loop error", e); }
         try { updateSwarm(); setInterval(updateSwarm, 10000); } catch (e) { console.error("swarm loop error", e); }

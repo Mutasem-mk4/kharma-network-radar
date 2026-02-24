@@ -75,7 +75,7 @@ click.rich_click.STYLE_EPILOG_TEXT = "white"
 
 HEADER = r"""
 +---------------------------------------+
-|  K H A R M A   _   S E N T I N E L    |
+|     K H A R M A   S E N T I N E L     |
 +---------------------------------------+
 |  >>  THE OVER-WATCH NETWORK MONITOR <<|
 +---------------------------------------+"""
@@ -87,7 +87,7 @@ FOOTER = "[dim italic]Run 'kharma [CMD] --help' for module documentation.[/dim i
 def cli(ctx):
     """\b
 +---------------------------------------+
-|  K H A R M A   _   S E N T I N E L    |
+|     K H A R M A   S E N T I N E L     |
 +---------------------------------------+
 |  >>  THE OVER-WATCH NETWORK MONITOR <<|
 +---------------------------------------+
