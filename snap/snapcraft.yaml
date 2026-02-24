@@ -1,0 +1,62 @@
+name: kharma-radar
+base: core22
+version: '10.2.4'
+summary: AI-powered Network Radar and Host Intrusion Prevention System
+description: |
+  Kharma Evolution is an elite, proactive network defense suite that monitors
+  your system's outbound connections in real-time. It features:
+  - Real-time radar terminal UI with live threat mapping
+  - Deep Packet Inspection (DPI) detecting SQLi, XSS, anomalous payloads
+  - VirusTotal integration scanning processes against 70+ AV engines
+  - Auto-blocking of malicious IPs via OS firewall
+  - Live geo-location threat visualization on a world map
+  - Telegram/Discord breach alerts
+  - Forensics logging (SQLite), daemon mode, multi-node swarm monitoring
+  - Web dashboard with glassmorphism UI
+
+  Usage:
+    sudo kharma-radar.kharma run          # Start radar
+    sudo kharma-radar.kharma web          # Launch web dashboard
+    sudo kharma-radar.kharma run --protect  # Auto-kill malware mode
+
+grade: stable
+confinement: strict
+
+plugs:
+  network:
+  network-bind:
+  network-observe:
+  network-control:
+  firewall-control:
+  process-control:
+  system-observe:
+  hardware-observe:
+
+apps:
+  kharma:
+    command: bin/kharma
+    plugs:
+      - network
+      - network-bind
+      - network-observe
+      - network-control
+      - firewall-control
+      - process-control
+      - system-observe
+      - hardware-observe
+
+parts:
+  kharma-radar:
+    plugin: python
+    source: .
+    python-requirements:
+      - requirements.txt
+    build-packages:
+      - python3-dev
+      - libpcap-dev
+      - gcc
+    stage-packages:
+      - python3
+      - libpcap0.8
+      - ncat
+      - ufw
