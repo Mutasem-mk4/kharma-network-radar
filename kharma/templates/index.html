@@ -626,7 +626,8 @@
             <h1 class="flex items-center gap-3">
                 KHARMA<span>_SENTINEL</span>
             </h1>
-            <div style="font-size: 0.6rem; color: var(--text-dim); margin-top: 2px;">V10.2.0-EVOLUTION PROACTIVE DEFENSE
+            <div style="font-size: 0.6rem; color: var(--text-dim); margin-top: 2px;">V10.2.15-EVOLUTION PROACTIVE
+                DEFENSE
                 SUITE</div>
         </div>
 
@@ -686,8 +687,13 @@
                     <i data-lucide="shield-check" style="color: var(--accent); width: 1.25rem;"></i>
                     LIVE PROCESS RADAR
                 </div>
-                <input type="text" id="filter-input" placeholder="Search processes, IPs, or locations..."
-                    class="search-box" autocomplete="off" spellcheck="false">
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <button class="kill-btn" onclick="simulateTraffic()"
+                        style="font-size: 0.65rem; border-color: var(--accent); color: var(--accent);">[ SIMULATE
+                        TRAFFIC ]</button>
+                    <input type="text" id="filter-input" placeholder="Search processes, IPs, or locations..."
+                        class="search-box" autocomplete="off" spellcheck="false">
+                </div>
             </div>
 
             <div class="table-scroll">
@@ -1753,6 +1759,53 @@
                 headers: { 'X-Kharma-Token': SESSION_TOKEN }
             });
             updateSwarm();
+        }
+
+        function simulateTraffic() {
+            allConnections = [
+                {
+                    process_name: "Kharma_Beacon",
+                    pid: 7777,
+                    remote_address: "1.1.1.1:443",
+                    remote_ip: "1.1.1.1",
+                    location: "Cloudflare, US",
+                    country_code: "US",
+                    lat: 37.7749,
+                    lon: -122.4194,
+                    status: "ESTABLISHED",
+                    in_kbps: 12.5,
+                    out_kbps: 5.2,
+                    ai_score: 1.2,
+                    ai_level: "SAFE",
+                    is_malware: false,
+                    is_shielded: false,
+                    vt_total: 70,
+                    vt_malicious: 0,
+                    anomalies: []
+                },
+                {
+                    process_name: "Suspicious_Actor",
+                    pid: 666,
+                    remote_address: "45.122.1.5:8080",
+                    remote_ip: "45.122.1.5",
+                    location: "Unknown, RU",
+                    country_code: "RU",
+                    lat: 55.7558,
+                    lon: 37.6173,
+                    status: "ESTABLISHED",
+                    in_kbps: 0.1,
+                    out_kbps: 156.0,
+                    ai_score: 8.9,
+                    ai_level: "CRITICAL",
+                    is_malware: true,
+                    is_shielded: false,
+                    vt_total: 68,
+                    vt_malicious: 42,
+                    anomalies: ["Unusual Outbound Burst", "C2 Communication Pattern"]
+                }
+            ];
+            renderUI();
+            showToast("SIMULATION ACTIVE", "Simulated traffic data injected for UI validation.", "info");
         }
 
         try {
