@@ -66,9 +66,10 @@
         }
 
         .brand h1 {
-            font-size: 1.5rem;
-            letter-spacing: 0.2em;
+            font-size: 1.25rem;
+            letter-spacing: 0.3em;
             font-weight: 700;
+            margin-bottom: 0.5rem;
         }
 
         .brand h1 span {
@@ -623,13 +624,8 @@
 
     <header class="glass-panel">
         <div class="brand">
-            <h1
-                style="letter-spacing: 0.4em; font-weight: 800; font-size: 1.2rem; text-transform: uppercase; color: var(--accent);">
-                KHARMA <span style="color: var(--text-main); font-weight: 400;">SENTINEL</span>
-            </h1>
-            <div style="font-size: 0.6rem; color: var(--text-dim); margin-top: 2px;">V10.2.15-EVOLUTION PROACTIVE
-                DEFENSE
-                SUITE</div>
+            <h1>KHARMA<span>_SENTINEL</span></h1>
+            <p>V10.2.15-EVOLUTION PROACTIVE DEFENSE SUITE</p>
         </div>
 
         <div class="stats-grid">
@@ -689,10 +685,11 @@
                     LIVE PROCESS RADAR
                 </div>
                 <div style="display: flex; gap: 8px; align-items: center;">
-                    <button id="diag-btn" class="kill-btn" onclick="simulateTraffic()"
-                        style="font-size: 0.65rem; border-color: #6366f1; color: #6366f1;">[ RUN DIAGNOSTICS ]</button>
-                    <input type="text" id="secure-search-input" placeholder="Search data..." class="search-box"
-                        autocomplete="one-time-code" spellcheck="false">
+                    <button class="kill-btn" onclick="simulateTraffic()"
+                        style="font-size: 0.65rem; border-color: var(--accent); color: var(--accent);">[ SIMULATE
+                        TRAFFIC ]</button>
+                    <input type="text" id="filter-input" placeholder="Search processes, IPs, or locations..."
+                        class="search-box" autocomplete="off" spellcheck="false" name="sentinel-filter">
                 </div>
             </div>
 
@@ -1114,8 +1111,7 @@
         }
 
         function renderUI() {
-            const searchBox = document.getElementById('secure-search-input');
-            const filter = searchBox.value.toLowerCase();
+            const filter = filterInput.value.toLowerCase();
             let html = "";
             let counter = 0;
             let vtActive = false;
@@ -1842,11 +1838,10 @@
         try { initMap(); } catch (e) { console.error("initMap error", e); }
         try { initChart(); } catch (e) { console.error("initChart error", e); }
         try {
-            const searchBox = document.getElementById('secure-search-input');
-            searchBox.addEventListener('input', renderUI);
-            // Critical Anti-Autofill
-            if (searchBox.value.length > 0) searchBox.value = '';
-        } catch (e) { console.error("search setup error", e); }
+            filterInput.addEventListener('input', renderUI);
+            // Anti-Autofill: Clear the search box on load if it has 'admin'
+            if (filterInput.value.toLowerCase() === 'admin') filterInput.value = '';
+        } catch (e) { console.error("filter input error", e); }
         try { updateRadar(); setInterval(updateRadar, 2000); } catch (e) { console.error("radar loop error", e); }
         try { updatePackets(); setInterval(updatePackets, 1000); } catch (e) { console.error("packet loop error", e); }
         try { updateSwarm(); setInterval(updateSwarm, 10000); } catch (e) { console.error("swarm loop error", e); }

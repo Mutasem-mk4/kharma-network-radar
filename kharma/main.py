@@ -75,7 +75,7 @@ click.rich_click.STYLE_EPILOG_TEXT = "white"
 
 HEADER = r"""
 +---------------------------------------+
-|     K H A R M A   S E N T I N E L     |
+|   K  H  A  R  M  A   S  E  N  T  I  N   |
 +---------------------------------------+
 |  >>  THE OVER-WATCH NETWORK MONITOR <<|
 +---------------------------------------+"""
@@ -87,7 +87,7 @@ FOOTER = "[dim italic]Run 'kharma [CMD] --help' for module documentation.[/dim i
 def cli(ctx):
     """\b
 +---------------------------------------+
-|     K H A R M A   S E N T I N E L     |
+|   K  H  A  R  M  A   S  E  N  T  I  N   |
 +---------------------------------------+
 |  >>  THE OVER-WATCH NETWORK MONITOR <<|
 +---------------------------------------+
@@ -98,7 +98,7 @@ def cli(ctx):
 [cyan]  [ Shield] [/cyan] [white]kharma run --protect[/white]
 [cyan]  [ Silent] [/cyan] [white]kharma daemon start[/white]
 
-[dim]KHARMA SENTINEL v10.2.15[/dim]
+[dim]KHARMA SENTINEL v10.2.0[/dim]
 Reveals hidden connections and bad karma processes.
 """
     if ctx.invoked_subcommand is None:
