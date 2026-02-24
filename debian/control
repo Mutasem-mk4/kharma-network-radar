@@ -2,13 +2,13 @@ Source: kharma-radar
 Section: net
 Priority: optional
 Maintainer: Mutasem Alashkar <mutasem@example.com>
-Build-Depends: debhelper (>= 10), dh-python, python3-all, python3-setuptools
+Build-Depends: debhelper (>= 10), dh-python, python3-all, python3-setuptools, python3-scapy, python3-psutil, python3-rich, python3-requests, python3-maxminddb
 Standards-Version: 4.1.4
 Homepage: https://mutasem-mk4.github.io/kharma-network-radar/
 
 Package: kharma-radar
 Architecture: all
-Depends: ${misc:Depends}, ${python3:Depends}, python3-psutil, python3-flask, python3-requests, python3-rich, netcat-traditional, ufw
+Depends: ${misc:Depends}, ${python3:Depends}, python3-psutil, python3-flask, python3-requests, python3-rich, python3-scapy, python3-maxminddb, netcat-traditional, ufw
 Description: AI-powered Network Radar and Host Intrusion Prevention System
  Kharma is a terminal-based Network Radar that maps all outbound connections.
  It features a deep packet inspection engine, AI heuristics scoring based on
