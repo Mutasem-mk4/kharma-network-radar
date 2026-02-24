@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="kharma-radar",
-    version="10.2.5",
+    version="10.2.6",
     author="Mutasem-mk4",
     author_email="example@example.com",
     description="Kharma Evolution: An elite proactive defense suite featuring real-time radar, DPI, Geo-Fencing, and automated malware termination.",
