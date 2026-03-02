@@ -93,11 +93,11 @@ class GeoIPResolver:
                     if country in fallbacks:
                         lat, lon = fallbacks[country]
                     else:
-                        import secrets
-                        # Using secrets for uniform distribution to satisfy security requirements
-                        # and providing a deterministic yet secure fallback
-                        lat = (secrets.randbelow(8000) / 100.0) - 40.0
-                        lon = (secrets.randbelow(8000) / 100.0) - 40.0
+                        import hashlib
+                        # Deterministic fallback based on IP hash to prevent coordinate jitter
+                        h = hashlib.md5(ip_address.encode()).digest()
+                        lat = ((h[0] % 16000) / 100.0) - 80.0
+                        lon = ((h[1] % 36000) / 100.0) - 180.0
 
                 location = f"{city}, {country}".strip(', ')
                 if not location:

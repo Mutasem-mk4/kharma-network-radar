@@ -10,10 +10,11 @@ class ShieldManager:
     def __init__(self):
         self.os_type = platform.system()
         self.rule_prefix = "KHARMA_BLOCK_"
+        self._whitelist = ["127.0.0.1", "localhost", "::1"]
 
     def block_ip(self, ip):
         """Creates a firewall rule to drop all traffic to/from the target IP or CIDR."""
-        if not ip: return False
+        if not ip or ip in self._whitelist: return False
         
         # Sanitize rule name for CIDR blocks (e.g. 1.2.3.0/24 -> 1_2_3_0_24)
         safe_name = ip.replace('.', '_').replace('/', '_')

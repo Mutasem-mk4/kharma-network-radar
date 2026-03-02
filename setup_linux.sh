@@ -1,6 +1,6 @@
 #!/bin/bash
 echo "==================================================="
-echo "[ Kharma Radar - Linux/macOS Setup ]"
+echo "[ Kharma Sentinel - Linux/macOS Setup ]"
 echo "==================================================="
 
 # Check if running as root

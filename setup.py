@@ -8,7 +8,7 @@ setup(
     version="10.2.15",
     author="Mutasem-mk4",
     author_email="example@example.com",
-    description="Kharma Evolution: An elite proactive defense suite featuring real-time radar, DPI, Geo-Fencing, and automated malware termination.",
+    description="Kharma Sentinel: An elite proactive defense suite featuring real-time radar, DPI, Geo-Fencing, and automated malware termination.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/Mutasem-mk4/kharma-network-radar",

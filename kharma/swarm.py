@@ -1,6 +1,9 @@
 import requests
 import threading
 import time
+import hmac
+import hashlib
+import json
 
 class SwarmEngine:
     """
@@ -30,12 +33,26 @@ class SwarmEngine:
     def remove_node(self, url):
         self.nodes = [n for n in self.nodes if n['url'] != url]
 
+    def _generate_signature(self, endpoint, data_str, timestamp):
+        """Generates an HMAC-SHA256 signature for the request."""
+        message = f"{endpoint}|{timestamp}|{data_str}".encode()
+        return hmac.new(self.secret_token.encode(), message, hashlib.sha256).hexdigest()
+
     def _sync_node(self, node):
-        """Fetches radar data from a remote node."""
+        """Fetches radar data from a remote node with signed headers."""
         try:
-            api_url = f"{node['url']}/api/radar"
-            headers = {"X-Kharma-Token": node['token']}
-            resp = requests.get(api_url, headers=headers, timeout=5)
+            timestamp = str(int(time.time()))
+            endpoint = "/api/radar"
+            # For GET requests, data_str is empty
+            signature = self._generate_signature(endpoint, "", timestamp)
+            
+            headers = {
+                "X-Kharma-Token": node['token'],
+                "X-Kharma-Timestamp": timestamp,
+                "X-Kharma-Signature": signature
+            }
+            
+            resp = requests.get(f"{node['url']}{endpoint}", headers=headers, timeout=5)
             if resp.status_code == 200:
                 data = resp.json().get('data', [])
                 self.hive_data[node['url']] = data
@@ -47,6 +64,25 @@ class SwarmEngine:
         except Exception as e:
             node['status'] = "Offline"
         return False
+
+    def broadcast_block(self, ip):
+        """Broadcasts a signed BLOCK command to all nodes in the hive."""
+        timestamp = str(int(time.time()))
+        endpoint = "/api/swarm/block"
+        payload = json.dumps({"ip": ip})
+        
+        for node in self.nodes:
+            try:
+                signature = self._generate_signature(endpoint, payload, timestamp)
+                headers = {
+                    "X-Kharma-Token": node['token'],
+                    "X-Kharma-Timestamp": timestamp,
+                    "X-Kharma-Signature": signature,
+                    "Content-Type": "application/json"
+                }
+                requests.post(f"{node['url']}{endpoint}", headers=headers, data=payload, timeout=3)
+            except:
+                pass # Fire and forget for now
 
     def sync_all(self):
         """Standardizes a background sync for all nodes."""

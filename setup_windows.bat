@@ -1,6 +1,6 @@
 @echo off
 echo ===================================================
-echo [ Kharma Radar - Windows Setup ]
+echo [ Kharma Sentinel - Windows Setup ]
 echo ===================================================
 
 REM Check for Python

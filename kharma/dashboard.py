@@ -25,7 +25,6 @@ def create_radar_table(scanner, geoip_resolver, intel, vt_engine=None, logger=No
     table.add_column("Status", style="bold")
 
     # Fetch connections and process names
-    scanner.scan()
     connections = scanner.get_active_connections()
     
     # Track unique processes for the header summary
@@ -104,9 +103,15 @@ def create_radar_table(scanner, geoip_resolver, intel, vt_engine=None, logger=No
             if auto_kill and conn['pid']:
                 try:
                     # Active Defense: Auto-Kill
-                    psutil.Process(conn['pid']).terminate()
-                    status = f"[bold white on red blink]AUTO-KILLED[/bold white on red blink]"
-                    p_name = f"[strike]{p_name}[/strike]"
+                    p = psutil.Process(conn['pid'])
+                    p_name_lower = p.name().lower()
+                    critical_procs = {'system idle process', 'system', 'smss.exe', 'csrss.exe', 'wininit.exe', 'services.exe', 'lsass.exe', 'svchost.exe', 'explorer.exe', 'winlogon.exe'}
+                    if p_name_lower in critical_procs:
+                        status = f"[bold yellow blink]OS CRITICAL. SAFE[/bold yellow blink]"
+                    else:
+                        p.terminate()
+                        status = f"[bold white on red blink]AUTO-KILLED[/bold white on red blink]"
+                        p_name = f"[strike]{p_name}[/strike]"
                 except (psutil.NoSuchProcess, psutil.AccessDenied):
                     status = f"[bold red blink]KILL FAILED[/bold red blink]"
             

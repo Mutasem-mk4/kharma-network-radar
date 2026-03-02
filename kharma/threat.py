@@ -78,5 +78,10 @@ class ThreatIntelligence:
         if not ip_address:
             return False
             
+        # Whitelist: Ignore non-routable/local IPs to prevent false positives (e.g. 0.0.0.0 listeners)
+        whitelist = ['0.0.0.0', '127.0.0.1', 'localhost', '::1']
+        if ip_address in whitelist:
+            return False
+            
         return ip_address in self.malicious_ips
 

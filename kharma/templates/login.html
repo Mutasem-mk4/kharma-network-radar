@@ -274,6 +274,10 @@
                 const data = await response.json();
 
                 if (response.ok) {
+                    // Store JWT for subsequent API calls
+                    if (data.token) {
+                        localStorage.setItem('kharma_jwt', data.token);
+                    }
                     // Redirect to dashboard on success
                     window.location.href = '/';
                 } else {
