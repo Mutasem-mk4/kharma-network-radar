@@ -1,15 +1,14 @@
 <div align="center">
   <img src="https://img.icons8.com/nolan/256/radar.png" alt="Kharma Logo" width="120" />
-  <h1>Kharma_Radar</h1>
+  <h1>Kharma Sentinel</h1>
   <p><b>Elite Proactive Defense & Enterprise-Grade Network Intelligence</b></p>
   <p>
     <a href="https://pypi.org/project/kharma-radar/"><img src="https://img.shields.io/pypi/v/kharma-radar?label=PyPI%20Release&color=10b981&style=flat-square" alt="PyPI" /></a>
     <img src="https://img.shields.io/pypi/dm/kharma-radar?color=blue&style=flat-square" alt="Downloads" />
     <img src="https://img.shields.io/badge/Python-3.8+-blue?style=flat-square&logo=python" alt="Python 3.8+" />
     <img src="https://img.shields.io/github/license/Mutasem-mk4/kharma-network-radar?color=purple&style=flat-square" alt="License MIT" />
-    <img src="https://img.shields.io/github/actions/workflow/status/Mutasem-mk4/kharma-network-radar/publish.yml?style=flat-square&label=Security%20Publish" alt="Security Publish" />
   </p>
-  <p><i>Kharma Evolution is an elite, proactive network defense suite designed to eliminate 'blind spots' in system visibility. It transforms raw network data into actionable security intelligence using real-time radar mapping, deep packet inspection (DPI), and automated malware termination.</i></p>
+  <p><i>Kharma Sentinel is an elite, proactive network defense suite designed to eliminate 'blind spots' in system visibility. It transforms raw network data into actionable security intelligence using real-time radar mapping, behavioral analysis, and automated threat neutralization.</i></p>
 </div>
 
 ---
@@ -35,41 +34,24 @@ Kharma is not just a monitor; it's an **Active Defense System**. It acts as an a
 
 ## 🚀 Installation & Setup
 
-### 🆕 Option 1: Standalone Portable EXE (Easiest)
+### ⚡ One-Click Installer (Recommended)
+The fastest way to get started. Automatically handles environment setup and dependencies.
+
+**Windows (PowerShell):**
+```powershell
+iwr -useb https://raw.githubusercontent.com/Mutasem-mk4/kharma-network-radar/main/install_sentinel.ps1 | iex
+```
+
+**Linux/macOS (Bash):**
+```bash
+curl -sSL https://raw.githubusercontent.com/Mutasem-mk4/kharma-network-radar/main/install_sentinel.sh | bash
+```
+
+### 🆕 Option 2: Standalone Portable EXE
 Download the zero-dependency executable. No Python installation required!
-- **Download:** [kharma.exe (v10.2.4)](https://github.com/Mutasem-mk4/kharma-network-radar/releases)
-- **Usage:** Just double-click to run or use it from the command line.
+- **Download:** [kharma.exe (v11.0.1)](https://github.com/Mutasem-mk4/kharma-network-radar/releases)
 
-### 🆕 Option 2: Smart Windows Installer (Automated)
-Don't have Python? Our script will set it up for you using `winget`.
-1. Download [setup_windows.bat](file:///c:/Users/User/.gemini/antigravity/scratch/kharma/setup_windows.bat).
-2. Right-click and **Run as Administrator**.
-3. It will automatically install Python (if missing) and all dependencies.
-
-### 🆕 Option 3: Docker (Containerized Dashboard)
-The most secure way to run the Web Dashboard without touching your local Python environment.
-```bash
-docker build -t kharma-radar .
-docker run --net=host -p 8085:8085 kharma-radar
-```
-*(Requires `--net=host` to monitor the host machine's actual network interface).*
-
-### 🆕 Option 4: Homebrew (macOS & Linux)
-```bash
-brew install Mutasem-mk4/kharma-network-radar/kharma
-```
-
-### 🆕 Option 5: Snapcraft (Ubuntu & Others)
-```bash
-snap install kharma --classic
-```
-
-### 🆕 Option 6: Windows Winget (Official)
-```bash
-winget install Mutasem.KharmaEvolution
-```
-
-### Option 6: Standard PyPI Install (For Developers)
+### Option 3: Developer Install (via PyPI)
 ```bash
 pip install kharma-radar
 ```

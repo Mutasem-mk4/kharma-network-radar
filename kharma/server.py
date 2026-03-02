@@ -5,7 +5,11 @@ import random
 import secrets
 import logging
 import json
+import jwt
+import time
+from datetime import datetime, timedelta
 from flask import Flask, render_template, jsonify, request, make_response, session, redirect, url_for
+from flask_compress import Compress
 from flask_cors import CORS
 from flask_talisman import Talisman
 from flask_socketio import SocketIO, emit
@@ -27,6 +31,7 @@ try:
     from kharma.honeypot import HoneypotDecoy
     from kharma.asn_blocker import ASNBlocker
     from kharma.report_generator import ReportGenerator
+    from kharma.mitigation import QuarantineManager
 except ImportError:
     from scanner import NetworkScanner
     from geoip import GeoIPResolver
@@ -41,26 +46,40 @@ except ImportError:
     from behavior import BehaviorEngine
     from swarm import SwarmEngine
     from report_generator import ReportGenerator
+    from mitigation import QuarantineManager
 
 class KharmaWebServer:
     def __init__(self, host="127.0.0.1", port=8085):
         self.host = host
         self.port = port
+        self._radar_cache = []
+        self._radar_last_refreshed = 0
         self.secret_token = self._generate_session_token()
         
-        # Determine the correct templates folder path regardless of pip vs source install
+        # Determine the correct templates and static folder paths
         if getattr(sys, 'frozen', False):
             # PyInstaller context
             template_dir = os.path.join(sys._MEIPASS, 'templates')
+            static_dir = os.path.join(sys._MEIPASS, 'static')
         else:
             # Standard package context
-            template_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates')
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            template_dir = os.path.join(base_dir, 'templates')
+            static_dir = os.path.join(base_dir, 'static')
             
-        self.app = Flask(__name__, template_folder=template_dir, static_folder=template_dir)
+        self.app = Flask(__name__, template_folder=template_dir, static_folder=static_dir)
+        Compress(self.app)  # Enable gzip/brotli compression for responses
         self.app.secret_key = self.secret_token # Use the same token for session signing
         
         # Security Hardening: Lockdown CORS to strict localhost
         CORS(self.app, resources={r"/api/*": {"origins": ["http://127.0.0.1:*", "http://localhost:*"]}})
+
+        @self.app.after_request
+        def add_cache_headers(response):
+            # Apply long-term caching for static assets
+            if request.path.startswith('/static/'):
+                response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+            return response
         
         # Security Hardening: Content Security Policy (CSP) and Security Headers
         csp = {
@@ -70,7 +89,8 @@ class KharmaWebServer:
                 '\'unsafe-inline\'',
                 'https://cdn.tailwindcss.com',
                 'https://unpkg.com',
-                'https://cdn.jsdelivr.net'
+                'https://cdn.jsdelivr.net',
+                'https://cdnjs.cloudflare.com'
             ],
             'style-src': [
                 '\'self\'',
@@ -87,23 +107,103 @@ class KharmaWebServer:
                 '\'self\'',
                 'data:',
                 'https://*.tile.openstreetmap.org',
-                'https://img.icons8.com'
+                'https://*.basemaps.cartocdn.com',
+                'https://img.icons8.com',
+                'https://unpkg.com'
             ]
         }
         Talisman(self.app, content_security_policy=csp, force_https=False)
         
         self.socketio = SocketIO(self.app, cors_allowed_origins="*")
         
+        self.start_time = time.time()
+        self.rate_limits = {} # IP -> [timestamps]
+
         self._setup_engines()
+        
+        # Persistent State: Load Pro License
+        self.is_pro = self.forensics.get_setting("is_pro") == "True"
+        
         self._setup_routes()
+
+    def _kill_process_and_children(self, pid):
+        """Forcefully kills a process and its entire child hierarchy (Phase 18 Hardening)."""
+        try:
+            parent = psutil.Process(pid)
+            critical_procs = {'system idle process', 'system', 'smss.exe', 'csrss.exe', 'wininit.exe', 'services.exe', 'lsass.exe', 'svchost.exe', 'explorer.exe', 'winlogon.exe'}
+            if parent.name().lower() in critical_procs:
+                return False
+            children = parent.children(recursive=True)
+            for child in children:
+                try:
+                    if child.name().lower() not in critical_procs:
+                        child.kill() # Force SIGKILL
+                except:
+                    pass
+            parent.kill() # Force SIGKILL
+            return True
+        except psutil.NoSuchProcess:
+            return False
+        except Exception as e:
+            print(f"[SENTINEL] Enforcement Error (PID {pid}): {e}")
+            return False
+
+    def _quarantine_process(self, pid):
+        """Suspends a process (Phase 3: Proactive Mitigation) using QuarantineManager."""
+        return QuarantineManager.suspend_process(pid)
+
+    def _resume_process(self, pid):
+        """Resumes a suspended process using QuarantineManager."""
+        return QuarantineManager.resume_process(pid)
+
+    def _load_settings(self):
+        """Unified settings loader: Combines Guardian config and DB settings."""
+        # Start with Guardian's JSON-based config
+        config = self.guardian.get_config()
+        
+        # Overlay DB-based settings (like language)
+        lang = self.forensics.get_setting("language", "EN")
+        config['language'] = lang
+
+        # Overlay Encrypted Settings (Enterprise Security)
+        for key in ['telegram_bot_token', 'telegram_chat_id', 'discord_webhook_url']:
+            val = self.forensics.get_encrypted_setting(key, "")
+            if val:
+                config[key] = val
+        
+        # Track First Run (Phase 8)
+        config['first_run'] = self.forensics.get_setting("first_run_completed") != "True"
+        
+        return config
 
     def _generate_session_token(self):
         """Generates a random token to prevent CSRF and unauthorized API calls."""
         import secrets
         return secrets.token_hex(24)
 
+    def _rate_limit(self, limit=5, window=60):
+        """Simple in-memory rate limiter for sensitive endpoints."""
+        from functools import wraps
+        from flask import request, jsonify
+        import time
+        def decorator(f):
+            @wraps(f)
+            def decorated_function(*args, **kwargs):
+                ip = request.remote_addr
+                now = time.time()
+                if ip not in self.rate_limits:
+                    self.rate_limits[ip] = []
+                # Clean old requests
+                self.rate_limits[ip] = [t for t in self.rate_limits[ip] if now - t < window]
+                if len(self.rate_limits[ip]) >= limit:
+                    return jsonify({"status": "error", "message": "Too many requests. Please wait."}), 429
+                self.rate_limits[ip].append(now)
+                return f(*args, **kwargs)
+            return decorated_function
+        return decorator
+
     def _require_auth(self, f):
-        """Security Decorator: Ensures the request carries the correct session token or session cookie."""
+        """Security Decorator: Ensures the request carries a valid JWT or session cookie."""
         from functools import wraps
         @wraps(f)
         def decorated_function(*args, **kwargs):
@@ -111,16 +211,72 @@ class KharmaWebServer:
             if session.get('authenticated'):
                 return f(*args, **kwargs)
                 
-            # 2. Check for Token Header/Param (Internal/CLI)
-            token = request.headers.get('X-Kharma-Token') or request.args.get('token')
+            # 2. Check for JWT Header
+            auth_header = request.headers.get('Authorization')
+            token = None
+            if auth_header and auth_header.startswith('Bearer '):
+                token = auth_header.split(" ")[1]
+            
+            # Fallback for old clients (legacy support for migration phase)
+            if not token:
+                token = request.headers.get('X-Kharma-Token') or request.args.get('token')
+
+            if not token:
+                return jsonify({"status": "error", "message": "Authentication token missing."}), 401
+            
+            # Validate JWT
+            try:
+                # If it's the raw secret_token (legacy), allow it
+                if token == self.secret_token:
+                    return f(*args, **kwargs)
+                
+                # Otherwise, treat as JWT
+                decoded = jwt.decode(token, self.secret_token, algorithms=["HS256"])
+                return f(*args, **kwargs)
+            except jwt.ExpiredSignatureError:
+                return jsonify({"status": "error", "message": "Session expired. Please login again."}), 401
+            except jwt.InvalidTokenError:
+                return jsonify({"status": "error", "message": "Invalid security token."}), 401
+            
+        return decorated_function
+
+    def _require_signature(self, f):
+        """Security Decorator: Validates HMAC-SHA256 signature for Swarm requests."""
+        from functools import wraps
+        import hmac
+        import hashlib
+        import time
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            token = request.headers.get('X-Kharma-Token')
+            timestamp = request.headers.get('X-Kharma-Timestamp')
+            signature = request.headers.get('X-Kharma-Signature')
+            
             if not token or token != self.secret_token:
-                return jsonify({"status": "error", "message": "Unauthorized. Secure Session Required."}), 403
+                return jsonify({"status": "error", "message": "Invalid Swarm Token"}), 403
+            if not timestamp or not signature:
+                return jsonify({"status": "error", "message": "Missing Signature Headers"}), 403
+            
+            # Anti-Replay: Check if timestamp is within 30 seconds
+            if abs(time.time() - int(timestamp)) > 30:
+                return jsonify({"status": "error", "message": "Signature Expired (Clock drift or Replay)"}), 403
+            
+            # Validate Signature
+            endpoint = request.path
+            data_str = request.get_data(as_text=True) if request.method == 'POST' else ""
+            message = f"{endpoint}|{timestamp}|{data_str}".encode()
+            expected = hmac.new(self.secret_token.encode(), message, hashlib.sha256).hexdigest()
+            
+            if not hmac.compare_digest(signature, expected):
+                return jsonify({"status": "error", "message": "Invalid Cryptographic Signature"}), 403
+                
             return f(*args, **kwargs)
         return decorated_function
 
     def _setup_engines(self):
         """Initialize all the core data gathering engines."""
         self.scanner = NetworkScanner()
+        self.scanner.start_background_scan(interval=0.5) # Phase 25: Real-time background scanning
         self.geoip = GeoIPResolver()
         self.intel = ThreatIntelligence()
         self.vt_engine = VTEngine()
@@ -142,6 +298,9 @@ class KharmaWebServer:
         # Sentinel: ASN Mass-Blocking
         self.asn_blocker = ASNBlocker(self.shield)
         
+        # Guardian: Sentinel Alert Monitor
+        self._start_alert_monitor()
+
         # Sentinel: WebSocket Handlers
         self._setup_sockets()
 
@@ -183,11 +342,71 @@ class KharmaWebServer:
             token = data.get('token')
             ip = data.get('ip')
             if token == self.secret_token and ip:
-                print(f"[SENTINEL] REMOTE COMMAND: SHIELD IP {ip}")
-                if self.shield.block_ip(ip):
-                    emit('command_result', {'status': 'success', 'message': f'IP {ip} isolated.'})
+                self.shield.block_ip(ip)
+                emit('command_result', {'status': 'success', 'message': f'IP {ip} shielded.'})
+
+        @self.socketio.on('remote_quarantine')
+        def handle_quarantine(data):
+            token = data.get('token')
+            pid = data.get('pid')
+            if token == self.secret_token and pid:
+                if self._quarantine_process(pid):
+                    emit('command_result', {'status': 'success', 'message': f'Process {pid} suspended.'})
                 else:
-                    emit('command_result', {'status': 'error', 'message': 'Shield failed.'})
+                    emit('command_result', {'status': 'error', 'message': f'Failed to suspend {pid}.'})
+
+        @self.socketio.on('remote_resume')
+        def handle_resume(data):
+            token = data.get('token')
+            pid = data.get('pid')
+            if token == self.secret_token and pid:
+                if self._resume_process(pid):
+                    emit('command_result', {'status': 'success', 'message': f'Process {pid} resumed.'})
+                else:
+                    emit('command_result', {'status': 'error', 'message': f'Failed to resume {pid}.'})
+
+    def _start_alert_monitor(self):
+        """Ghost v3: Spawns a background thread to bridge detections with Guardian alerts."""
+        def alert_loop():
+            # Keep track of last seen threat IPs and DPI packet times to avoid flooding
+            # although GuardianBot has internal throttling/sets.
+            last_packet_time = ""
+            
+            while True:
+                try:
+                    # 1. Monitor Network Scanner for Malicious IPs
+                    active_conns = self.scanner.get_active_connections()
+                    for conn in active_conns:
+                        remote_ip = conn.get('remote_ip')
+                        if remote_ip and self.intel.check_ip(remote_ip):
+                            # Guardian handles internal throttling and set-based deduplication
+                            self.guardian.alert_threat(remote_ip, conn.get('name', 'Unknown'))
+
+                    # 2. Monitor DPI Engine for Payload Alerts
+                    packets = self.dpi.get_packets()
+                    if packets:
+                        latest = packets[-1] # Check newest first
+                        if latest.get('severity') == 'danger' and latest.get('alert'):
+                            # Only alert if it's a new timestamped packet
+                            p_time = latest.get('time', '')
+                            if p_time != last_packet_time:
+                                self.guardian.alert_dpi(
+                                    latest.get('src', 'Unknown'), 
+                                    latest.get('dst', 'Unknown'), 
+                                    latest.get('alert', 'Suspicious Payload')
+                                )
+                                last_packet_time = p_time
+                    
+                    time.sleep(1.0) # Poll interval
+                except Exception as e:
+                    # Silent failure with backup logging for background thread
+                    import sys
+                    print(f"[SENTINEL] Alert Monitor Error: {e}", file=sys.stderr)
+                    time.sleep(5)
+
+        import threading
+        thread = threading.Thread(target=alert_loop, daemon=True)
+        thread.start()
 
     def _honeypot_callback(self, ip, port):
         """Autonomous Response: Block any IP that hits a honeypot port and its entire ASN."""
@@ -205,18 +424,53 @@ class KharmaWebServer:
             severity="critical"
         )
 
-    def _load_settings(self):
-        import json, os
-        config_path = os.path.expanduser("~/.kharma/daemon_config.json")
-        if os.path.exists(config_path):
-            with open(config_path, "r") as f:
-                try: return json.load(f)
-                except Exception as e:
-                    print(f"[SERVER] Settings load error: {e}")
-                    return {}
-        return {}
 
     def _setup_routes(self):
+        @self.app.route('/api/license', methods=['POST'])
+        @self._require_auth
+        @self._rate_limit(limit=3, window=60)
+        def manage_license():
+            data = request.json
+            key = data.get("key", "")
+            if key == "KHARMA-PRO-2026":
+                self.is_pro = True
+                self.forensics.set_setting("is_pro", "True")
+                return jsonify({"status": "success", "message": "KHARMA PRO ACTIVATED", "is_pro": True}), 200
+            return jsonify({"status": "error", "message": "INVALID LICENSE KEY"}), 403
+
+        @self.app.route('/api/status', methods=['GET'])
+        def get_status():
+            # Get requester's IP for local map centering
+            ip = request.remote_addr
+            if ip in ('127.0.0.1', '::1'):
+                # Try to get public IP if local
+                try:
+                    import requests
+                    ip = requests.get('https://api.ipify.org', timeout=1).text
+                except:
+                    pass
+            
+            lat, lon, _ = self.geoip.resolve(ip)
+            
+            return jsonify({
+                "status": "online",
+                "is_pro": self.is_pro,
+                "version": "11.0.1",
+                "lat": lat,
+                "lon": lon
+            })
+
+        @self.app.route('/api/health')
+        def health_check():
+            """Enterprise Health Monitoring."""
+            import time
+            return jsonify({
+                "status": "success",
+                "service": "Kharma Sentinel",
+                "uptime": int(time.time() - self.start_time),
+                "healthy": True
+            })
+
         @self.app.route('/')
         def index():
             """Serve the main Kharma Dashboard UI."""
@@ -234,20 +488,35 @@ class KharmaWebServer:
             return render_template('login.html')
 
         @self.app.route('/api/login', methods=['POST'])
+        @self._rate_limit(limit=5, window=60)
         def api_login():
-            """Authentication Endpoint."""
+            """Authentication Endpoint issuing JWT."""
             data = request.get_json()
             username = data.get('username')
             password = data.get('password')
             
             settings = self._load_settings()
-            stored_password = settings.get('web_password', 'sentinel123') # Default password if not set
+            stored_password = settings.get('web_password', 'sentinel123') 
             
             if username == 'admin' and password == stored_password:
                 session['authenticated'] = True
-                return jsonify({"status": "success", "message": "Authenticated."}), 200
+                
+                # Issue JWT
+                payload = {
+                    'exp': datetime.utcnow() + timedelta(hours=24),
+                    'iat': datetime.utcnow(),
+                    'user': username,
+                    'tier': 'pro' if self.is_pro else 'lite'
+                }
+                token = jwt.encode(payload, self.secret_token, algorithm="HS256")
+                
+                return jsonify({
+                    "status": "success", 
+                    "token": token,
+                    "is_pro": self.is_pro
+                }), 200
             
-            return jsonify({"status": "error", "message": "Invalid credentials."}), 401
+            return jsonify({"status": "error", "message": "Invalid credentials"}), 401
 
         @self.app.route('/logout')
         def logout():
@@ -258,186 +527,104 @@ class KharmaWebServer:
         @self.app.route('/api/radar', methods=['GET'])
         def get_live_radar():
             """
-            Fetches all active network connections and runs them through the 
-            Threat Intel, GeoIP, and VirusTotal engines to build a complete JSON response.
+            Fetches all active network connections.
+            Cached for 1s to prevent overhead from high-frequency frontend polling.
             """
+            # Pagination parameters (applied after data collection)
+            limit = int(request.args.get('limit', 200))
+            offset = int(request.args.get('offset', 0))
+
+            now = time.time()
+            if hasattr(self, '_radar_cache') and (now - self._radar_last_refreshed < 1.0):
+                return jsonify({"status": "success", "data": self._radar_cache}), 200
+
             try:
-                self.scanner.scan()
-                self.dpi.update_flow_map(self.scanner.flow_map)                
+                # Update DPI stats
+                # Sync flow map for attribution
+                self.dpi.update_flow_map(self.scanner.get_flow_map())
+                bw_report = self.dpi.get_bandwidth_report()
                 active_connections = self.scanner.get_active_connections()
-                bandwidth_stats = self.dpi.get_bandwidth_report()
-                payload_samples = self.dpi.get_recent_payloads()
-                
-                settings = self._load_settings()
-                blocked_countries = settings.get('blocked_countries', [])
-                
+
                 radar_data = []
                 blocked_ips = self.shield.list_blocked()
 
                 for conn in active_connections:
+                    pid = conn['pid']
                     remote_ip = conn['remote_ip']
-                    
-                    # 1. GeoIP Lookup
-                    location = "[LOCAL]"
-                    country_code = "LOCAL"
-                    lat, lon = None, None
-                    if remote_ip and not remote_ip.startswith(('127.', '192.168.', '10.')):
-                        lat_lon = self.geoip.resolve(remote_ip)
-                        if isinstance(lat_lon, tuple):
-                            if len(lat_lon) >= 3:
-                                lat, lon, location_str = lat_lon[0], lat_lon[1], lat_lon[2]
-                                location = location_str
-                                country_code = location_str.split(',')[-1].strip() if ',' in location_str else "N/A"
-                                
-                                # --- Geo-Fencing Auto-Block ---
-                                if country_code != "N/A" and country_code in blocked_countries and remote_ip not in blocked_ips:
-                                    if self.shield.block_ip(remote_ip):
-                                        blocked_ips.append(remote_ip)
-                                        self.forensics.log("BLOCKED", remote_ip, conn['name'], location, f"Geo-Fence Policy: {country_code}", "high")
-                            else:
-                                location = "Tuple Error"
-                                country_code = "N/A"
-                        else:
-                            location = str(lat_lon) if lat_lon else "[UNKNOWN]"
-                            country_code = "N/A"
 
-                    # 2. Threat Intel (Malware Detection)
-                    is_malware = False
-                    status_text = conn['status']
-                    if remote_ip and self.intel.check_ip(remote_ip):
-                        is_malware = True
-                        status_text = "BREACHED"
+                    # 1. GeoIP Lookup (Local MMDB, very fast)
+                    lat, lon, location = self.geoip.resolve(remote_ip)
 
-                    # 3. VirusTotal EDR Scoring
-                    vt_malicious = -1
-                    vt_total = -1
-                    if self.vt_engine.api_key and conn.get('exe'):
-                        file_hash = self.vt_engine.get_file_hash(conn['exe'])
-                        if file_hash:
-                            vt_m, vt_t = self.vt_engine.check_hash(file_hash)
-                            if vt_m is not None:
-                                vt_malicious = vt_m
-                                vt_total = vt_t
-                                if vt_malicious > 0:
-                                    is_malware = True
-                                    status_text = "BREACHED"
+                    # 2. Bandwidth stats (DPI with I/O Fallback)
+                    bw = bw_report.get(pid, {"in_kbps": 0.0, "out_kbps": 0.0})
 
-                    # 4. Community Reputation
-                    is_community_flagged = self.community.is_flagged(remote_ip)
-                    community_detail = self.community.get_details(remote_ip) if is_community_flagged else None
-                    if is_community_flagged:
-                        status_text = "SUSPICIOUS"
+                    # Fallback to direct I/O if DPI is silent
+                    if bw['in_kbps'] <= 0.0 or bw['out_kbps'] <= 0.0:
+                        io = conn.get('io_counters')
+                        if io:
+                            io_report = self.behavior.get_io_kbps(pid, io)
+                            if io_report:
+                                bw['in_kbps'] = max(bw['in_kbps'], io_report['in_kbps'])
+                                bw['out_kbps'] = max(bw['out_kbps'], io_report['out_kbps'])
 
-                    # 5. AI Behavioral Profiling
+                    # 3. Threat Intelligence (O(1) Set lookup)
+                    is_malware = self.intel.check_ip(remote_ip)
+
+                    # 4. Behavioral Analysis (Local heuristics)
                     ai_results = self.behavior.analyze(
-                        conn.get('name', 'Unknown'), 
-                        bandwidth_stats.get(conn['pid'], {}).get('in_kbps', 0),
-                        bandwidth_stats.get(conn['pid'], {}).get('out_kbps', 0),
-                        country_code,
-                        payload=payload_samples.get(conn['pid'])
+                        conn.get('name', 'Unknown'),
+                        bw['in_kbps'], bw['out_kbps'],
+                        remote_ip, location.split(',')[-1].strip()
                     )
 
-                    # Assemble JSON Row
+                    # 5. Community Flags
+                    is_flagged = self.community.is_flagged(remote_ip)
+
+                    # Assemble row
                     radar_data.append({
                         "process_name": conn.get('name', 'Unknown'),
-                        "pid": conn.get('pid', 'N/A'),
+                        "pid": pid,
                         "exe": conn.get('exe', ''),
                         "local_address": f"{conn.get('local_ip')}:{conn.get('local_port')}",
                         "remote_address": f"{remote_ip}:{conn.get('remote_port')}",
-                        "remote_ip": remote_ip, # Send raw IP for reporting
+                        "remote_ip": remote_ip,
                         "location": location,
-                        "country_code": country_code,
-                        "lat": lat if lat is not None else (float(secrets.randbelow(8000)) / 100 - 40 if country_code != 'LOCAL' else None),
-                        "lon": lon if lon is not None else (float(secrets.randbelow(8000)) / 100 - 40 if country_code != 'LOCAL' else None),
-                        "status": status_text,
+                        "lat": lat,
+                        "lon": lon,
+                        "status": conn.get('status', 'ACTIVE'),
                         "is_malware": is_malware,
-                        "is_community_flagged": is_community_flagged,
-                        "community_reports": community_detail['reports'] if is_community_flagged else 0,
-                        "in_kbps": bandwidth_stats.get(conn['pid'], {}).get('in_kbps', 0),
-                        "out_kbps": bandwidth_stats.get(conn['pid'], {}).get('out_kbps', 0),
-                        "anomalies": ai_results['anomalies'],
+                        "is_flagged": is_flagged,
                         "ai_score": ai_results['score'],
                         "ai_level": ai_results['level'],
                         "ai_msg": ai_results['message'],
-                        "is_shielded": remote_ip in blocked_ips,
-                        "vt_malicious": vt_malicious,
-                        "vt_total": vt_total
+                        "anomalies": ai_results['anomalies'],
+                        "in_kbps": bw['in_kbps'],
+                        "out_kbps": bw['out_kbps'],
+                        "is_shielded": remote_ip in blocked_ips
                     })
 
-                    # 6. Auto-Shielding + Guardian + Forensics
-                    if remote_ip not in blocked_ips:
-                        risk_score = 0
-                        if is_community_flagged and community_detail['reports'] >= 3: risk_score += 10
-                        if vt_malicious > 5: risk_score += 10
-                        if is_malware: risk_score += 10
-                        
-                        # Apply AI-based risk additions
-                        if ai_results['level'] == 'CRITICAL': risk_score += 15
-                        if ai_results['level'] == 'SUSPICIOUS': risk_score += 5
-                        
-                        if risk_score >= 10:
-                            print(f"[SHIELD] Sentinel AI Trigger: Blocking {remote_ip} (Score: {risk_score})")
-                            self.shield.block_ip(remote_ip)
-                            blocked_ips.append(remote_ip)
-                            self.guardian.alert_blocked(remote_ip, reason=f"Sentinel AI Detection: {ai_results['message']}")
-                            self.forensics.log(
-                                event_type="BLOCKED",
-                                ip=remote_ip,
-                                process=conn.get('name', 'Unknown'),
-                                location=location,
-                                detail=f"Risk Score: {risk_score}",
-                                severity="high"
-                            )
-                            
-                            # --- Autonomous Geofencing / Mass Block ---
-                            # If the threat is severe (Score >= 20) or from a blocked country, isolate the entire range
-                            if risk_score >= 20 or (country_code in blocked_countries and risk_score >= 10):
-                                print(f"[SENTINEL] TRIGGERING MASS BLOCK FOR: {remote_ip} ({country_code})")
-                                self.asn_blocker.mass_block_asn(remote_ip)
-                                self.forensics.log(
-                                    event_type="BLOCKED",
-                                    ip=remote_ip,
-                                    process=conn.get('name', 'Unknown'),
-                                    location=location,
-                                    detail=f"Automated Geofencing: ASN Isolated",
-                                    severity="critical"
-                                )
-
-                    # 6. Guardian + Forensics Threat Logging
-                    if is_malware:
-                        self.guardian.alert_threat(remote_ip, conn.get('name', 'Unknown'))
-                        self.forensics.log(
-                            event_type="THREAT",
-                            ip=remote_ip,
-                            process=conn.get('name', 'Unknown'),
-                            location=location,
-                            detail=f"VT:{vt_malicious}/{vt_total}" if vt_malicious >= 0 else "Threat Intel Match",
-                            severity="critical"
-                        )
-
-                    # 7. Community Flag Logging
-                    if is_community_flagged and community_detail['reports'] >= 3:
-                        self.forensics.log(
-                            event_type="COMMUNITY_FLAG",
-                            ip=remote_ip,
-                            process=conn.get('name', 'Unknown'),
-                            location=location,
-                            detail=f"{community_detail['reports']} community reports",
-                            severity="medium"
-                        )
-
-                return jsonify({"status": "success", "data": radar_data}), 200
+                # Apply pagination before caching and response
+                paginated = radar_data[offset:offset+limit]
+                self._radar_cache = paginated
+                self._radar_last_refreshed = now
+                return jsonify({"status": "success", "data": paginated, "total": len(radar_data)}), 200
 
             except Exception as e:
                 import traceback
-                return jsonify({"status": "error", "message": str(e), "trace": traceback.format_exc()}), 500
+                traceback.print_exc()
+                return jsonify({"status": "error", "message": str(e)}), 500
+
 
         @self.app.route('/api/kill/<int:pid>', methods=['DELETE'])
+        @self._require_auth
         def kill_process(pid):
             """API Endpoint to instantly terminate a process via the Web UI."""
             try:
                 p = psutil.Process(pid)
                 p_name = p.name()
+                critical_procs = {'system idle process', 'system', 'smss.exe', 'csrss.exe', 'wininit.exe', 'services.exe', 'lsass.exe', 'svchost.exe', 'explorer.exe', 'winlogon.exe'}
+                if p_name.lower() in critical_procs:
+                    return jsonify({"status": "error", "message": f"Cannot kill critical OS process: {p_name}"}), 403
                 p.terminate()
                 p.wait(timeout=3)
                 return jsonify({"status": "success", "message": f"Terminated {p_name} (PID: {pid})"}), 200
@@ -448,10 +635,43 @@ class KharmaWebServer:
             except Exception as e:
                 return jsonify({"status": "error", "message": f"Failed to kill process: {e}"}), 500
 
-        @self.app.route('/api/report', methods=['POST'])
+        @self.app.route('/api/quarantine/<int:pid>', methods=['DELETE'])
+        @self._require_auth
+        def quarantine_process(pid):
+            """API Endpoint to suspend a process."""
+            if self._quarantine_process(pid):
+                return jsonify({"status": "success", "message": f"Process {pid} suspended (Quarantined)."}), 200
+            return jsonify({"status": "error", "message": f"Failed to suspend PID {pid}."}), 500
+
+        @self.app.route('/api/resume/<int:pid>', methods=['POST'])
+        @self._require_auth
+        def resume_process(pid):
+            """API Endpoint to resume a suspended process."""
+            if self._resume_process(pid):
+                return jsonify({"status": "success", "message": f"Process {pid} resumed."}), 200
+            return jsonify({"status": "error", "message": f"Failed to resume PID {pid}."}), 500
+
+        @self.app.route('/api/mitigate/stats', methods=['GET'])
+        def get_mitigation_stats():
+            """API Endpoint to get current mitigation statistics."""
+            quarantined = QuarantineManager.get_quarantined_pids()
+            return jsonify({
+                "status": "success",
+                "quarantined_count": len(quarantined),
+                "quarantined_pids": quarantined
+            }), 200
+
+        @self.app.route('/api/report', methods=['POST', 'DELETE'])
+        @self._require_auth
         def report_to_community():
-            """API Endpoint to report a malicious IP to the decentralized Kharma community."""
+            """API Endpoint to report/un-report a malicious IP to the decentralized Kharma community."""
             try:
+                if request.method == 'DELETE':
+                    ip = request.args.get('ip')
+                    if not ip: return jsonify({"status": "error", "message": "Missing IP."}), 400
+                    success = self.community.unreport_ip(ip)
+                    return jsonify({"status": "success" if success else "error", "message": f"IP {ip} un-reported." if success else "Failed to remove flag."}), 200 if success else 500
+
                 data = request.get_json()
                 remote_ip = data.get('ip')
                 reason = data.get('reason', 'Manual Flag')
@@ -468,15 +688,10 @@ class KharmaWebServer:
                 return jsonify({"status": "error", "message": str(e)}), 500
 
         @self.app.route('/api/shield', methods=['GET', 'POST', 'DELETE'])
+        @self._require_auth
         def manage_shield():
             """API Endpoint for manual firewall shield management."""
             try:
-                # Sensitive actions (POST/DELETE) require auth
-                if request.method in ['POST', 'DELETE']:
-                    token = request.headers.get('X-Kharma-Token') or request.args.get('token')
-                    if not token or token != self.secret_token:
-                        return jsonify({"status": "error", "message": "Unauthorized action."}), 403
-
                 if request.method == 'GET':
                     blocked = self.shield.list_blocked()
                     return jsonify({"status": "success", "data": blocked}), 200
@@ -509,15 +724,35 @@ class KharmaWebServer:
 
         @self.app.route('/api/settings', methods=['GET', 'POST'])
         def manage_settings():
-            """API Endpoint to get/update Guardian Bot configuration."""
+            """API Endpoint to get/update system configuration and localization."""
             try:
                 if request.method == 'GET':
-                    config = self.guardian.get_config()
+                    config = self._load_settings()
                     return jsonify({"status": "success", "data": config}), 200
                 
                 data = request.get_json()
-                self.guardian.save_config(data)
-                return jsonify({"status": "success", "message": "Settings saved. Guardian Bot activated."}), 200
+                
+                # 1. Update Credential Encryption (Sensitive)
+                sensitive_keys = ['telegram_bot_token', 'telegram_chat_id', 'discord_webhook_url']
+                for key in sensitive_keys:
+                    if key in data:
+                        self.forensics.set_encrypted_setting(key, data[key])
+                        # Update live instance
+                        self.guardian.config[key] = data[key]
+                
+                # 2. Update Guardian Bot non-sensitive config
+                non_sensitive_keys = ['alert_on_threat', 'alert_on_block', 'alert_on_dpi']
+                if any(k in data for k in non_sensitive_keys):
+                    self.guardian.save_config(data)
+                
+                # 3. Update Persisted DB Settings
+                if 'language' in data:
+                    self.forensics.set_setting("language", data['language'])
+                
+                if 'first_run_completed' in data:
+                    self.forensics.set_setting("first_run_completed", "True")
+
+                return jsonify({"status": "success", "message": "Settings updated successfully."}), 200
             except Exception as e:
                 return jsonify({"status": "error", "message": str(e)}), 500
 
@@ -557,6 +792,19 @@ class KharmaWebServer:
                 return jsonify(result), 200
             else:
                 return jsonify(result), 404
+
+        @self.app.route('/api/swarm/block', methods=['POST'])
+        @self._require_signature
+        def sync_block():
+            """Inbound Federated Block request from another node."""
+            data = request.json
+            ip = data.get('ip')
+            if ip:
+                if self.shield.block_ip(ip):
+                    from kharma.forensics import ForensicsDB
+                    self.forensics.log("BLOCKED", ip, "Swarm/Federated", "Hive Broadcast", "Federated Block via Signed Request", "high")
+                    return jsonify({"status": "success", "message": f"Federated block applied for {ip}"}), 200
+            return jsonify({"status": "error", "message": "Invalid Request"}), 400
 
         @self.app.route('/api/swarm', methods=['GET', 'POST', 'DELETE'])
         @self._require_auth
@@ -624,16 +872,16 @@ class KharmaWebServer:
 
 if __name__ == '__main__':
     import platform, sys, os
-    if platform.system() == "Windows":
-        import ctypes
-        if ctypes.windll.shell32.IsUserAnAdmin() == 0:
-            script = os.path.abspath(sys.argv[0])
-            params = ' '.join([f'"{arg}"' for arg in sys.argv[1:]])
-            if getattr(sys, 'frozen', False):
-                ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, params, None, 1)
-            else:
-                ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, f'"{script}" {params}', None, 1)
-            sys.exit(0)
+    # if platform.system() == "Windows":
+    #     import ctypes
+    #     if ctypes.windll.shell32.IsUserAnAdmin() == 0:
+    #         script = os.path.abspath(sys.argv[0])
+    #         params = ' '.join([f'"{arg}"' for arg in sys.argv[1:]])
+    #         if getattr(sys, 'frozen', False):
+    #             ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, params, None, 1)
+    #         else:
+    #             ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, f'"{script}" {params}', None, 1)
+    #         sys.exit(0)
 
     # Auto-open browser in 1 second
     import threading, webbrowser, time

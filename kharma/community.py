@@ -70,6 +70,14 @@ class CommunityIntel:
         """Returns community details for a flagged IP."""
         return self.blacklist.get(ip)
 
+    def unreport_ip(self, ip):
+        """Removes an IP from the local community blacklist."""
+        if ip in self.blacklist:
+            del self.blacklist[ip]
+            self._save_blacklist()
+            return True
+        return False
+
     def sync(self):
         """
         Future implementation: Sync local reporting with a central Kharma Master Feed.

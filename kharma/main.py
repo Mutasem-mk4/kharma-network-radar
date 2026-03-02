@@ -6,6 +6,9 @@ import platform
 import os
 import sys
 
+# Ensure local modules can be imported when running directly
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 # Internal Modules
 try:
     from kharma.scanner import NetworkScanner
@@ -75,7 +78,7 @@ click.rich_click.STYLE_EPILOG_TEXT = "white"
 
 HEADER = r"""
 +---------------------------------------+
-|   K  H  A  R  M  A   S  E  N  T  I  N   |
+|   K H A R M A   S E N T I N E L       |
 +---------------------------------------+
 |  >>  THE OVER-WATCH NETWORK MONITOR <<|
 +---------------------------------------+"""
@@ -87,7 +90,7 @@ FOOTER = "[dim italic]Run 'kharma [CMD] --help' for module documentation.[/dim i
 def cli(ctx):
     """\b
 +---------------------------------------+
-|   K  H  A  R  M  A   S  E  N  T  I  N   |
+|   K H A R M A   S E N T I N E L       |
 +---------------------------------------+
 |  >>  THE OVER-WATCH NETWORK MONITOR <<|
 +---------------------------------------+
@@ -98,7 +101,7 @@ def cli(ctx):
 [cyan]  [ Shield] [/cyan] [white]kharma run --protect[/white]
 [cyan]  [ Silent] [/cyan] [white]kharma daemon start[/white]
 
-[dim]KHARMA SENTINEL v10.2.0[/dim]
+[dim]KHARMA SENTINEL v11.0.1-PREMIUM[/dim]
 Reveals hidden connections and bad karma processes.
 """
     if ctx.invoked_subcommand is None:
@@ -180,6 +183,7 @@ def run_radar(log_enabled=False, proc_filter=None, malware_only=False, auto_kill
         console.print("[cyan]Initializing Kharma Sentinel...[/cyan]")
         console.print("[dim]Checking Intel Databases...[/dim]")
         scanner = NetworkScanner()
+        scanner.start_background_scan() # Start the daemon scan loop to populate buffers
         geoip = GeoIPResolver()
         intel = ThreatIntelligence()
         vt_engine = VTEngine()
@@ -228,6 +232,10 @@ def kill(pid):
     try:
         p = psutil.Process(pid)
         pname = p.name()
+        critical_procs = {'system idle process', 'system', 'smss.exe', 'csrss.exe', 'wininit.exe', 'services.exe', 'lsass.exe', 'svchost.exe', 'explorer.exe', 'winlogon.exe'}
+        if pname.lower() in critical_procs:
+            console.print(f"[red]Error: Cannot kill critical system process '{pname}'.[/red]")
+            return
         if click.confirm(f"Are you sure you want to terminate '{pname}' (PID: {pid})?", abort=True):
             p.terminate()
             p.wait(timeout=3)
@@ -417,7 +425,12 @@ def web_cmd(port):
     try:
         from kharma.server import KharmaWebServer
     except ImportError:
-        from server import KharmaWebServer
+        try:
+            from server import KharmaWebServer
+        except ImportError:
+            # Add current directory to path if standard relative/absolute imports fail
+            sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+            from server import KharmaWebServer
         
     # Ensure run as admin/root for full visibility
     if platform.system() == "Windows":

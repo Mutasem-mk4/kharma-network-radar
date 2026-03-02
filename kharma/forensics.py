@@ -4,6 +4,7 @@ import json
 import csv
 import io
 import time
+from cryptography.fernet import Fernet
 
 DB_PATH = os.path.join(os.path.expanduser("~"), ".kharma", "forensics.db")
 
@@ -17,6 +18,19 @@ class ForensicsDB:
         os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
         self.db_path = DB_PATH
         self._init_db()
+        self._init_encryption()
+
+    def _init_encryption(self):
+        """Initializes the master encryption key."""
+        key_path = os.path.join(os.path.dirname(self.db_path), "secret.key")
+        if not os.path.exists(key_path):
+            key = Fernet.generate_key()
+            with open(key_path, 'wb') as f:
+                f.write(key)
+        else:
+            with open(key_path, 'rb') as f:
+                key = f.read()
+        self.fernet = Fernet(key)
 
     def _connect(self):
         conn = sqlite3.connect(self.db_path)
@@ -36,6 +50,12 @@ class ForensicsDB:
                     location    TEXT,
                     detail      TEXT,
                     severity    TEXT DEFAULT 'medium'
+                )
+            """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS settings (
+                    key         TEXT PRIMARY KEY,
+                    value       TEXT NOT NULL
                 )
             """)
             conn.commit()
@@ -97,3 +117,35 @@ class ForensicsDB:
         with self._connect() as conn:
             conn.execute("DELETE FROM events")
             conn.commit()
+
+    def set_setting(self, key, value):
+        """Persists a setting as a string/JSON."""
+        with self._connect() as conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+                (key, str(value))
+            )
+            conn.commit()
+
+    def get_setting(self, key, default=None):
+        """Retrieves a persistent setting."""
+        with self._connect() as conn:
+            row = conn.execute("SELECT value FROM settings WHERE key=?", (key,)).fetchone()
+            if row:
+                return row["value"]
+        return default
+
+    def set_encrypted_setting(self, key, value):
+        """Encrypt and store a sensitive setting."""
+        if not value: return
+        encrypted = self.fernet.encrypt(str(value).encode()).decode()
+        self.set_setting(key, encrypted)
+
+    def get_encrypted_setting(self, key, default=None):
+        """Retrieve and decrypt a sensitive setting."""
+        val = self.get_setting(key)
+        if not val: return default
+        try:
+            return self.fernet.decrypt(val.encode()).decode()
+        except:
+            return default

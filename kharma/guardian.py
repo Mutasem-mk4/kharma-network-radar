@@ -2,6 +2,7 @@ import threading
 import http.client
 import json
 import os
+import time
 
 class GuardianBot:
     """
@@ -17,6 +18,8 @@ class GuardianBot:
     def __init__(self):
         self.config = self._load_config()
         self._alerted_ips = set()  # To prevent repeated alerts for the same IP
+        self._alert_counts = {}  # type: seconds -> count
+        self._whitelist = ["127.0.0.1", "localhost", "::1"]
 
     def _load_config(self):
         """Loads webhook config from disk, returns defaults if not found."""
@@ -88,8 +91,24 @@ class GuardianBot:
         except Exception as e:
             print(f"[GUARDIAN] Discord error: {e}")
 
-    def _broadcast(self, message):
+    def _should_throttle(self, alert_type):
+        """Ghost v3: Prevents notification floods (max 5 per min per type)."""
+        now = int(time.time())
+        minute = now // 60
+        key = f"{alert_type}_{minute}"
+        
+        count = self._alert_counts.get(key, 0)
+        if count >= 5:
+            return True
+        
+        self._alert_counts[key] = count + 1
+        return False
+
+    def _broadcast(self, message, alert_type="GENERIC"):
         """Sends alert to all configured channels in a background thread."""
+        if self._should_throttle(alert_type):
+            return
+            
         def _send_all():
             self._send_telegram(message)
             self._send_discord(message)
@@ -97,7 +116,7 @@ class GuardianBot:
 
     def alert_threat(self, ip, process_name, source="Threat Intel"):
         """Fires when a known malicious IP is detected in active connections."""
-        if not self.config.get("alert_on_threat") or ip in self._alerted_ips:
+        if not self.config.get("alert_on_threat") or ip in self._alerted_ips or ip in self._whitelist:
             return
         self._alerted_ips.add(ip)
         msg = (
@@ -109,11 +128,11 @@ class GuardianBot:
             f"━━━━━━━━━━━━━━━━━━━\n"
             f"Action: Review Kharma dashboard immediately."
         )
-        self._broadcast(msg)
+        self._broadcast(msg, "THREAT")
 
     def alert_blocked(self, ip, reason="Auto-Shield"):
         """Fires when Kharma automatically blocks an IP."""
-        if not self.config.get("alert_on_block"):
+        if not self.config.get("alert_on_block") or ip in self._whitelist:
             return
         msg = (
             f"🛡️ <b>KHARMA SHIELD: IP BLOCKED</b>\n"
@@ -123,11 +142,11 @@ class GuardianBot:
             f"━━━━━━━━━━━━━━━━━━━\n"
             f"The firewall rule has been applied."
         )
-        self._broadcast(msg)
+        self._broadcast(msg, "BLOCK")
 
     def alert_dpi(self, src, dst, alert_type):
         """Fires when DPI detects a suspicious payload."""
-        if not self.config.get("alert_on_dpi"):
+        if not self.config.get("alert_on_dpi") or src in self._whitelist:
             return
         msg = (
             f"⚠️ <b>KHARMA DPI: PAYLOAD ALERT</b>\n"
@@ -138,7 +157,7 @@ class GuardianBot:
             f"━━━━━━━━━━━━━━━━━━━\n"
             f"Review the DPI stream for full details."
         )
-        self._broadcast(msg)
+        self._broadcast(msg, "DPI")
 
     def get_config(self):
         """Returns the current (sanitized) config."""
