@@ -58,6 +58,26 @@ class ForensicsDB:
                     value       TEXT NOT NULL
                 )
             """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS snapshots (
+                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp   TEXT NOT NULL,
+                    ip          TEXT,
+                    process     TEXT,
+                    details     TEXT -- JSON blob of process metadata
+                )
+            """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS incident_reports (
+                    ip          TEXT PRIMARY KEY,
+                    timestamp   TEXT NOT NULL,
+                    score       INTEGER,
+                    org         TEXT,
+                    isp         TEXT,
+                    usage_type  TEXT,
+                    forensics   TEXT -- JSON blob of linked snapshot
+                )
+            """)
             conn.commit()
 
     def log(self, event_type, ip=None, process=None, location=None, detail=None, severity="medium"):
@@ -149,3 +169,19 @@ class ForensicsDB:
             return self.fernet.decrypt(val.encode()).decode()
         except:
             return default
+
+    def capture_snapshot(self, ip, process, details):
+        """Stores a heavy forensic snapshot (Phase 11: Elite Evidence)."""
+        timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
+        with self._connect() as conn:
+            conn.execute(
+                "INSERT INTO snapshots (timestamp, ip, process, details) VALUES (?,?,?,?)",
+                (timestamp, ip, process, json.dumps(details))
+            )
+            conn.commit()
+            
+    def get_snapshots(self, limit=10):
+        """Retrieves recent forensic snapshots."""
+        with self._connect() as conn:
+            rows = conn.execute("SELECT * FROM snapshots ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
+        return [dict(r) for r in rows]

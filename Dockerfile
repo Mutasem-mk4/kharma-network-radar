@@ -1,33 +1,28 @@
-# Dockerfile for Kharma Network Radar
-FROM python:3.12-slim
-
-# Install system dependencies required for packet capture and networking utilities
-RUN apt-get update && apt-get install -y \
-    gcc \
-    python3-dev \
-    libpcap-dev \
-    iproute2 \
-    iptables \
-    net-tools \
-    && rm -rf /var/lib/apt/lists/*
+# Use official lightweight Python image
+FROM python:3.10-slim
 
 # Set working directory
 WORKDIR /app
 
-# Copy requirement files first for layer caching
-COPY requirements.txt .
+# Install system dependencies (for psutil and network tools)
+RUN apt-get update && apt-get install -y \
+    gcc \
+    python3-dev \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install python dependencies
+# Copy requirements first for better caching
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of the application
 COPY . .
 
-# Expose the default web dashboard port
+# Expose the dashboard port
 EXPOSE 8085
 
-# Define the entry point
-ENTRYPOINT ["python", "-m", "kharma"]
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
 
-# Default command specifies starting the web dashboard
-CMD ["web", "--host", "0.0.0.0", "--port", "8085"]
+# Start the application in web mode by default
+CMD ["python", "main.py", "web"]

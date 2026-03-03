@@ -202,11 +202,11 @@ def run_radar(log_enabled=False, proc_filter=None, malware_only=False, auto_kill
         else:
             console.print("[yellow]⚠️  VirusTotal Engine is offline. Run 'kharma config vt <API_KEY>' to enable deep EDR scanning.[/yellow]")
         
-        with Live(create_radar_table(scanner, geoip, intel, vt_engine, logger, proc_filter, malware_only, auto_kill), console=console, refresh_per_second=2) as live:
+        with Live(create_radar_table(scanner, geoip, intel, vt_engine, logger, proc_filter, malware_only, auto_kill), console=console, refresh_per_second=1) as live:
             try:
                 while True:
                     live.update(create_radar_table(scanner, geoip, intel, vt_engine, logger, proc_filter, malware_only, auto_kill))
-                    time.sleep(1.5)
+                    time.sleep(2.0)
             except KeyboardInterrupt:
                 console.print("\n[dim]Radar offline. Stay safe.[/dim]")
                 sys.exit(0)

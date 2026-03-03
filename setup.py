@@ -1,49 +1,33 @@
 from setuptools import setup, find_packages
+import os
 
-with open("README.md", "r", encoding="utf-8") as fh:
-    long_description = fh.read()
+def read_requirements():
+    if os.path.exists("requirements.txt"):
+        with open("requirements.txt") as f:
+            return f.read().splitlines()
+    return ["flask", "psutil", "requests", "pyjwt", "cryptography", "reportlab"]
 
 setup(
-    name="kharma-radar",
-    version="10.2.15",
-    author="Mutasem-mk4",
-    author_email="example@example.com",
-    description="Kharma Sentinel: An elite proactive defense suite featuring real-time radar, DPI, Geo-Fencing, and automated malware termination.",
-    long_description=long_description,
+    name="kharma-sentinel",
+    version="1.0.0",
+    author="Mutasem",
+    description="Advanced Offensive Intelligence & Real-Time Active Defense Suite",
+    long_description=open("README.md", encoding="utf-8").read(),
     long_description_content_type="text/markdown",
     url="https://github.com/Mutasem-mk4/kharma-network-radar",
     packages=find_packages(),
     include_package_data=True,
+    install_requires=read_requirements(),
+    entry_points={
+        "console_scripts": [
+            "kharma=kharma.main:main",
+        ],
+    },
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
         "Topic :: Security",
-        "Topic :: System :: Networking",
-        "Environment :: Console",
     ],
-    python_requires='>=3.8',
-    install_requires=[
-        'click',
-        'rich',
-        'psutil',
-        'requests',
-        'maxminddb',
-        'vt-py',
-        'rich-click',
-        'Flask',
-        'Flask-Cors',
-        'scapy',
-        'flask-talisman',
-    ],
-    project_urls={
-        "Bug Tracker": "https://github.com/Mutasem-mk4/kharma-network-radar/issues",
-        "Source Code": "https://github.com/Mutasem-mk4/kharma-network-radar",
-        "Documentation": "https://github.com/Mutasem-mk4/kharma-network-radar#readme",
-    },
-    entry_points={
-        "console_scripts": [
-            "kharma=kharma.main:cli",
-        ],
-    },
+    python_requires=">=3.8",
 )

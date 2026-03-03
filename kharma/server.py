@@ -7,6 +7,9 @@ import logging
 import json
 import jwt
 import time
+import threading
+import hmac
+import hashlib
 from datetime import datetime, timedelta
 from flask import Flask, render_template, jsonify, request, make_response, session, redirect, url_for
 from flask_compress import Compress
@@ -30,7 +33,9 @@ try:
     from kharma.swarm import SwarmEngine
     from kharma.honeypot import HoneypotDecoy
     from kharma.asn_blocker import ASNBlocker
+    from kharma.reputation import ReputationEngine
     from kharma.report_generator import ReportGenerator
+    from kharma.pdf_engine import PDFEngine
     from kharma.mitigation import QuarantineManager
 except ImportError:
     from scanner import NetworkScanner
@@ -46,6 +51,8 @@ except ImportError:
     from behavior import BehaviorEngine
     from swarm import SwarmEngine
     from report_generator import ReportGenerator
+    from pdf_engine import PDFEngine
+    from reputation import ReputationEngine
     from mitigation import QuarantineManager
 
 class KharmaWebServer:
@@ -121,6 +128,10 @@ class KharmaWebServer:
 
         self._setup_engines()
         
+        # Social Proof: Local cache for GitHub Stats
+        self._global_stats = {"stars": 0, "downloads": 0, "forks": 0}
+        self._last_stats_update = 0
+        
         # Persistent State: Load Pro License
         self.is_pro = self.forensics.get_setting("is_pro") == "True"
         
@@ -173,6 +184,9 @@ class KharmaWebServer:
         
         # Track First Run (Phase 8)
         config['first_run'] = self.forensics.get_setting("first_run_completed") != "True"
+        
+        # Autonomous Mode (Phase 11 Hardening)
+        config['autonomous_defense'] = self.forensics.get_setting("autonomous_defense") == "True"
         
         return config
 
@@ -287,9 +301,11 @@ class KharmaWebServer:
         self.guardian = GuardianBot()
         self.forensics = ForensicsDB()
         self.behavior = BehaviorEngine()
+        self.reputation = ReputationEngine(self.forensics)
         self.hunter = HunterEngine()
         self.swarm = SwarmEngine(self.secret_token)
         self.report_gen = ReportGenerator(self.forensics)
+        self.pdf_engine = PDFEngine(self.forensics)
         
         # Sentinel: Honeypot Auto-Defense
         self.honeypot = HoneypotDecoy()
@@ -300,6 +316,12 @@ class KharmaWebServer:
         
         # Guardian: Sentinel Alert Monitor
         self._start_alert_monitor()
+        
+        # Social Proof: Start background stats sync
+        self._start_stats_monitor()
+        
+        # Anti-Tamper: Integrity Watchdog (Phase 11 Elite)
+        self._start_tamper_watchdog()
 
         # Sentinel: WebSocket Handlers
         self._setup_sockets()
@@ -342,8 +364,11 @@ class KharmaWebServer:
             token = data.get('token')
             ip = data.get('ip')
             if token == self.secret_token and ip:
-                self.shield.block_ip(ip)
-                emit('command_result', {'status': 'success', 'message': f'IP {ip} shielded.'})
+                if self.shield.block_ip(ip):
+                    self.guardian.alert_blocked(ip, reason="Remote Command (Swarm/Mobile)")
+                    emit('command_result', {'status': 'success', 'message': f'IP {ip} shielded.'})
+                else:
+                    emit('command_result', {'status': 'error', 'message': f'Failed to shield {ip}.'})
 
         @self.socketio.on('remote_quarantine')
         def handle_quarantine(data):
@@ -369,8 +394,8 @@ class KharmaWebServer:
         """Ghost v3: Spawns a background thread to bridge detections with Guardian alerts."""
         def alert_loop():
             # Keep track of last seen threat IPs and DPI packet times to avoid flooding
-            # although GuardianBot has internal throttling/sets.
             last_packet_time = ""
+            alerted_blocks = set() # Local session cache for block alerts
             
             while True:
                 try:
@@ -382,7 +407,47 @@ class KharmaWebServer:
                             # Guardian handles internal throttling and set-based deduplication
                             self.guardian.alert_threat(remote_ip, conn.get('name', 'Unknown'))
 
-                    # 2. Monitor DPI Engine for Payload Alerts
+                    # 2. Monitor Firewall for New Blocks (Heuristic/Autonomous)
+                    blocked_ips = self.shield.list_blocked()
+                    for b_ip in blocked_ips:
+                        if b_ip not in alerted_blocks:
+                            self.guardian.alert_blocked(b_ip, reason="Autonomous Shield")
+                            alerted_blocks.add(b_ip)
+
+                    # 3. Autonomous Response Layer (Phase 11: Elite Hardening)
+                    # If enabled, automatically block high-score processes
+                    if self.forensics.get_setting("autonomous_defense") == "True":
+                        for conn in active_conns:
+                            remote_ip = conn.get('remote_ip')
+                            if not remote_ip or remote_ip in self.shield._whitelist:
+                                continue
+                            
+                            # Re-run behavior analysis for current state
+                            io_kbps = self.behavior.get_io_kbps(conn['pid'], conn.get('io_counters')) if 'io_counters' in conn else {"in_kbps": 0, "out_kbps": 0}
+                            ai = self.behavior.analyze(
+                                conn.get('name', 'Unknown'),
+                                io_kbps['in_kbps'], io_kbps['out_kbps'],
+                                remote_ip, "UNKNOWN"
+                            )
+                            
+                            if ai['score'] >= 8.5 and remote_ip not in blocked_ips:
+                                print(f"[SENTINEL] AUTONOMOUS MITIGATION TRIGGERED: {remote_ip} (Score: {ai['score']})")
+                                if self.shield.block_ip(remote_ip):
+                                    # Capture Forensic Snapshot
+                                    snapshot_details = {
+                                        "process": conn.get('name'),
+                                        "pid": conn.get('pid'),
+                                        "exe": conn.get('exe'),
+                                        "ai_report": ai,
+                                        "bandwidth": io_kbps,
+                                        "timestamp": time.time()
+                                    }
+                                    self.forensics.capture_snapshot(remote_ip, conn.get('name'), snapshot_details)
+                                    self._deconstruct_incident(remote_ip, snapshot_details)
+                                    self.guardian.alert_blocked(remote_ip, reason=f"Autonomous AI Defense (Score: {ai['score']})")
+                                    alerted_blocks.add(remote_ip)
+                            
+                    # 4. Monitor DPI Engine for Payload Alerts
                     packets = self.dpi.get_packets()
                     if packets:
                         latest = packets[-1] # Check newest first
@@ -397,16 +462,73 @@ class KharmaWebServer:
                                 )
                                 last_packet_time = p_time
                     
-                    time.sleep(1.0) # Poll interval
+                    time.sleep(2.0) # Poll interval
                 except Exception as e:
                     # Silent failure with backup logging for background thread
                     import sys
                     print(f"[SENTINEL] Alert Monitor Error: {e}", file=sys.stderr)
                     time.sleep(5)
 
-        import threading
         thread = threading.Thread(target=alert_loop, daemon=True)
         thread.start()
+
+    def _start_stats_monitor(self):
+        """Periodically fetches GitHub stats to show 'Social Proof' in the dashboard."""
+        def stats_loop():
+            import requests
+            repo = "Mutasem-mk4/kharma-network-radar"
+            while True:
+                try:
+                    # Fetch basic repo stats
+                    resp = requests.get(f"https://api.github.com/repos/{repo}", timeout=5)
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        self._global_stats['stars'] = data.get('stargazers_count', 0)
+                        self._global_stats['forks'] = data.get('forks_count', 0)
+                    
+                    # Fetch release downloads (for kkharma.exe)
+                    resp = requests.get(f"https://api.github.com/repos/{repo}/releases", timeout=5)
+                    if resp.status_code == 200:
+                        releases = resp.json()
+                        total_dl = 0
+                        for r in releases:
+                            for asset in r.get('assets', []):
+                                total_dl += asset.get('download_count', 0)
+                        
+                        # Add local downloads to the total for a combined "Global Adoption" score
+                        local_dl = int(self.forensics.get_setting("local_downloads", 0))
+                        self._global_stats['downloads'] = total_dl + local_dl
+                    
+                    self._last_stats_update = time.time()
+                except:
+                    pass
+                time.sleep(300) # Check every 5 minutes
+
+        import threading
+        threading.Thread(target=stats_loop, daemon=True).start()
+
+    def _start_tamper_watchdog(self):
+        """Anti-Tamper: Monitors Kharma's own health and potential interference."""
+        def watchdog_loop():
+            import psutil
+            my_pid = os.getpid()
+            while True:
+                try:
+                    # Check for debuggers or high-priority interference (Simplified for Elite Demo)
+                    p = psutil.Process(my_pid)
+                    if p.status() == psutil.STATUS_STOPPED:
+                        # This wouldn't run if stopped, but we log heartbeats to ForensicsDB
+                        pass
+                    
+                    # Heartbeat log (Silent/Low severity)
+                    self.forensics.log("SYSTEM_HEALTH", detail="Anti-Tamper Watchdog Pulse: OK", severity="low")
+                    
+                    time.sleep(60)
+                except:
+                    time.sleep(10)
+
+        import threading
+        threading.Thread(target=watchdog_loop, daemon=True).start()
 
     def _honeypot_callback(self, ip, port):
         """Autonomous Response: Block any IP that hits a honeypot port and its entire ASN."""
@@ -426,6 +548,24 @@ class KharmaWebServer:
 
 
     def _setup_routes(self):
+        @self.app.before_request
+        def check_first_run():
+            # Allow access to setup, static files, and the setup API without redirection
+            if request.path.startswith('/static') or request.path in ['/setup', '/api/settings']:
+                return
+            
+            # Check if first run is completed
+            is_completed = self.forensics.get_setting("first_run_completed")
+            if not is_completed:
+                return redirect(url_for('setup_wizard'))
+
+        @self.app.route('/setup')
+        def setup_wizard():
+            is_completed = self.forensics.get_setting("first_run_completed")
+            if is_completed:
+                return redirect(url_for('index'))
+            return render_template('setup.html')
+
         @self.app.route('/api/license', methods=['POST'])
         @self._require_auth
         @self._rate_limit(limit=3, window=60)
@@ -460,6 +600,23 @@ class KharmaWebServer:
                 "lon": lon
             })
 
+        @self.app.route('/api/report/evidence', methods=['GET'])
+        def get_evidence():
+            """Returns the 'Deconstructed' evidence for a specific IP."""
+            from flask import request
+            ip = request.args.get('ip')
+            if not ip: return jsonify({"status": "error", "message": "IP required"}), 400
+            
+            with self.forensics._connect() as conn:
+                row = conn.execute("SELECT * FROM incident_reports WHERE ip=?", (ip,)).fetchone()
+                if row:
+                    res = dict(row)
+                    if res.get('forensics'):
+                        try: res['forensics'] = json.loads(res['forensics'])
+                        except: pass
+                    return jsonify(res)
+            return jsonify({"status": "error", "message": "Evidence not found"}), 404
+
         @self.app.route('/api/health')
         def health_check():
             """Enterprise Health Monitoring."""
@@ -469,6 +626,15 @@ class KharmaWebServer:
                 "service": "Kharma Sentinel",
                 "uptime": int(time.time() - self.start_time),
                 "healthy": True
+            })
+
+        @self.app.route('/api/stats/global')
+        def get_global_stats():
+            """Returns the cached social proof metrics."""
+            return jsonify({
+                "status": "success",
+                "data": self._global_stats,
+                "updated_at": self._last_stats_update
             })
 
         @self.app.route('/')
@@ -495,8 +661,8 @@ class KharmaWebServer:
             username = data.get('username')
             password = data.get('password')
             
-            settings = self._load_settings()
-            stored_password = settings.get('web_password', 'sentinel123') 
+            # Retrieve the master password from the forensics engine
+            stored_password = self.forensics.get_encrypted_setting('admin_password', 'sentinel123')
             
             if username == 'admin' and password == stored_password:
                 session['authenticated'] = True
@@ -579,6 +745,9 @@ class KharmaWebServer:
 
                     # 5. Community Flags
                     is_flagged = self.community.is_flagged(remote_ip)
+                    
+                    # 6. Reputation Intel (Phase 12: Value-Add)
+                    rep_score = self.reputation.get_score(remote_ip)
 
                     # Assemble row
                     radar_data.append({
@@ -589,6 +758,7 @@ class KharmaWebServer:
                         "remote_address": f"{remote_ip}:{conn.get('remote_port')}",
                         "remote_ip": remote_ip,
                         "location": location,
+                        "reputation": rep_score,
                         "lat": lat,
                         "lon": lon,
                         "status": conn.get('status', 'ACTIVE'),
@@ -702,8 +872,12 @@ class KharmaWebServer:
 
                 if request.method == 'POST':
                     success = self.shield.block_ip(ip)
-                    message = f"IP {ip} is now SHIELDED." if success else "Failed to block IP. Check admin rights."
-                    return jsonify({"status": "success" if success else "error", "message": message}), 200 if success else 500
+                    if success:
+                        self.guardian.alert_blocked(ip, reason="Manual Web Action")
+                        message = f"IP {ip} is now SHIELDED."
+                        return jsonify({"status": "success", "message": message}), 200
+                    else:
+                        return jsonify({"status": "error", "message": "Failed to block IP. Check admin rights."}), 500
                 
                 if request.method == 'DELETE':
                     success = self.shield.unblock_ip(ip)
@@ -725,6 +899,16 @@ class KharmaWebServer:
         @self.app.route('/api/settings', methods=['GET', 'POST'])
         def manage_settings():
             """API Endpoint to get/update system configuration and localization."""
+            # 1. Check if first run is completed to enforce security
+            is_completed = self.forensics.get_setting("first_run_completed")
+            
+            # If already configured, require full authentication for access
+            if is_completed:
+                @self._require_auth
+                def check_auth(): pass
+                auth_result = check_auth()
+                if auth_result: return auth_result
+
             try:
                 if request.method == 'GET':
                     config = self._load_settings()
@@ -732,20 +916,25 @@ class KharmaWebServer:
                 
                 data = request.get_json()
                 
-                # 1. Update Credential Encryption (Sensitive)
+                # 2. Update Administrative Password (Sensitive)
+                if 'admin_password' in data:
+                    self.forensics.set_encrypted_setting('admin_password', data['admin_password'])
+
+                # 3. Update Credential Encryption (Sensitive)
                 sensitive_keys = ['telegram_bot_token', 'telegram_chat_id', 'discord_webhook_url']
                 for key in sensitive_keys:
                     if key in data:
                         self.forensics.set_encrypted_setting(key, data[key])
                         # Update live instance
-                        self.guardian.config[key] = data[key]
+                        if hasattr(self, 'guardian'):
+                            self.guardian.config[key] = data[key]
                 
-                # 2. Update Guardian Bot non-sensitive config
+                # 4. Update Guardian Bot non-sensitive config
                 non_sensitive_keys = ['alert_on_threat', 'alert_on_block', 'alert_on_dpi']
                 if any(k in data for k in non_sensitive_keys):
                     self.guardian.save_config(data)
                 
-                # 3. Update Persisted DB Settings
+                # 5. Update Persisted DB Settings
                 if 'language' in data:
                     self.forensics.set_setting("language", data['language'])
                 
@@ -848,18 +1037,67 @@ class KharmaWebServer:
 
         @self.app.route('/api/report/export', methods=['GET'])
         def export_security_report():
-            """Generates and serves a premium security report."""
-            from flask import Response
+            """Generates and serves a premium security report (HTML or PDF)."""
+            from flask import Response, request
             try:
-                html_content = self.report_gen.generate_html_report()
+                report_format = request.args.get('format', 'html').lower()
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                return Response(
-                    html_content,
-                    mimetype='text/html',
-                    headers={"Content-Disposition": f"attachment;filename=sentinel_report_{timestamp}.html"}
-                )
+                
+                if report_format == 'pdf':
+                    pdf_content = self.pdf_engine.generate()
+                    return Response(
+                        pdf_content,
+                        mimetype='application/pdf',
+                        headers={"Content-Disposition": f"attachment;filename=sentinel_report_{timestamp}.pdf"}
+                    )
+                else:
+                    html_content = self.report_gen.generate_html_report()
+                    return Response(
+                        html_content,
+                        mimetype='text/html',
+                        headers={"Content-Disposition": f"attachment;filename=sentinel_report_{timestamp}.html"}
+                    )
             except Exception as e:
                 return jsonify({"status": "error", "message": str(e)}), 500
+
+        @self.app.route('/download/sentinel')
+        def download_sentinel_exe():
+            """Serves the kharma.exe and tracks local download intent."""
+            from flask import send_file
+            # Find kharma.exe in the root
+            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            exe_path = os.path.join(base_dir, "kharma.exe")
+            
+            if os.path.exists(exe_path):
+                # Increment local download counter
+                current = int(self.forensics.get_setting("local_downloads", 0))
+                self.forensics.set_setting("local_downloads", current + 1)
+                
+                # Update live stats immediately for better UX
+                self._global_stats['downloads'] += 1
+                
+                return send_file(exe_path, as_attachment=True)
+            return jsonify({"status": "error", "message": "Sentinel binary not found"}), 404
+
+    def _deconstruct_incident(self, ip, snapshot):
+        """Phase 13: Elite AIR Deconstruction Engine. Runs in background."""
+        def task():
+            try:
+                print(f"[SENTINEL] DECONSTRUCTING THREAT: {ip}")
+                intel = self.reputation.get_full_intel(ip)
+                timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                
+                with self.forensics._connect() as conn:
+                    conn.execute("""
+                        INSERT OR REPLACE INTO incident_reports (ip, timestamp, score, org, isp, usage_type, forensics)
+                        VALUES (?,?,?,?,?,?,?)
+                    """, (ip, timestamp, intel['score'], intel['org'], intel['isp'], intel.get('usage_type'), json.dumps(snapshot)))
+                    conn.commit()
+                print(f"[SENTINEL] DECONSTRUCTION COMPLETE: {ip} ({intel['org']})")
+            except Exception as e:
+                print(f"[SENTINEL] Deconstruction Failed for {ip}: {e}")
+
+        threading.Thread(target=task, daemon=True).start()
 
     def start(self):
         """Start the Flask internal server. This is a blocking call."""

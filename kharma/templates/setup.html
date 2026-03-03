@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kharma Sentinel | Initialization</title>
+    <link rel="stylesheet" href="/static/css/main.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        .setup-container {
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: radial-gradient(circle at center, #111 0%, #000 100%);
+        }
+
+        .setup-card {
+            background: rgba(20, 20, 20, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 3rem;
+            border-radius: 16px;
+            width: 100%;
+            max-width: 450px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .setup-header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+
+        .setup-logo {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 1rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .setup-card h2 {
+            font-weight: 700;
+            letter-spacing: -1px;
+            margin-bottom: 0.5rem;
+        }
+
+        .setup-card p {
+            color: var(--text-dim);
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+
+<body class="setup-container">
+    <div class="setup-card">
+        <div class="setup-header">
+            <img src="/static/img/logo.png" alt="Logo" class="setup-logo">
+            <h2>System Initialization</h2>
+            <p>Welcome to Kharma Sentinel. Secure your perimeter.</p>
+        </div>
+
+        <div class="form-group">
+            <label>Master Admin Password</label>
+            <div class="input-field">
+                <input type="password" id="admin-pass" placeholder="Minimum 8 characters">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Telegram Bot Token (Optional)</label>
+            <div class="input-field">
+                <input type="password" id="tg-token" placeholder="Optional">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Telegram Chat ID (Optional)</label>
+            <div class="input-field">
+                <input type="text" id="tg-chat-id" placeholder="Optional">
+            </div>
+        </div>
+
+        <button class="action-btn success w-100" style="margin-top: 1rem; height: 45px;" onclick="completeSetup()">
+            Finalize Deployment
+        </button>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        async function completeSetup() {
+            const password = document.getElementById('admin-pass').value;
+            const tgToken = document.getElementById('tg-token').value;
+            const tgChat = document.getElementById('tg-chat-id').value;
+
+            if (password.length < 8) {
+                alert("Password must be at least 8 characters long.");
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        admin_password: password,
+                        telegram_bot_token: tgToken,
+                        telegram_chat_id: tgChat,
+                        first_run_completed: true
+                    })
+                });
+                const data = await response.json();
+                if (data.status === 'success') {
+                    window.location.href = '/';
+                } else {
+                    alert(data.message);
+                }
+            } catch (e) {
+                console.error(e);
+                alert("Setup failed. Check server console.");
+            }
+        }
+    </script>
+</body>
+
+</html>

@@ -10,7 +10,7 @@ const ROW_TTL = 5000; // Keep closed connections on screen for 5s
 let currentLang = 'EN';
 let localCoords = { lat: 20, lon: 0 }; // Default global view
 
-// Configuration
+
 const CONFIG = {
     POLL_RATE: 1000,
     MAP_TILE: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
@@ -22,6 +22,33 @@ document.addEventListener("DOMContentLoaded", async () => {
     initPolling();
     lucide.createIcons();
 });
+
+async function exportReport(format) {
+    const token = document.querySelector('meta[name="session-token"]').content;
+    const url = `/api/report/export?format=${format}`;
+
+    try {
+        const response = await fetch(url, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!response.ok) throw new Error("Export failed");
+
+        const blob = await response.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        a.download = `sentinel_report_${timestamp}.${format}`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(downloadUrl);
+    } catch (e) {
+        console.error(e);
+        alert("Report generation failed: " + e.message);
+    }
+}
 
 async function initLocalCoords() {
     try {
@@ -73,7 +100,7 @@ function updateMap() {
     allConnections.forEach(conn => {
         if (!conn.lat || !conn.lon) return;
 
-        const isThreat = conn.ai_score > 7 || conn.is_malware;
+        const isThreat = (conn.ai_score || 0) > 7 || conn.is_malware;
         const color = isThreat ? 'var(--danger)' : 'var(--success)';
 
         // Marker
@@ -101,9 +128,9 @@ function updateMap() {
 
         const polyline = L.polyline(path, {
             color: color,
-            weight: 1.5,
-            opacity: 0.2,
-            dashArray: '5, 10'
+            weight: 2,
+            opacity: 0.4,
+            className: 'animated-polyline'
         });
         arcLayer.addLayer(polyline);
     });
@@ -163,18 +190,28 @@ function renderTable() {
 }
 
 function renderRowCells(tr, conn, isThreat, isDead) {
-    const aiColor = conn.ai_score > 7 ? 'var(--danger)' : (conn.ai_score > 4 ? 'var(--warning)' : 'var(--success)');
+    const score = conn.ai_score || 0;
+    const aiColor = score > 7 ? 'var(--danger)' : (score > 4 ? 'var(--warning)' : 'var(--success)');
     const statusHtml = isDead ?
         `<span class="text-muted fw-light">CLOSED</span>` :
         `<span class="badge ${isThreat ? 'badge-threat' : 'badge-safe'}">${isThreat ? 'DETECTED' : 'ESTABLISHED'}</span>`;
 
+    // Elite Reputation Intelligence
+    let repBadge = '';
+    const rep = conn.reputation || 0;
+    if (rep > 80) repBadge = `<span class="rep-badge rep-malicious">${rep}%_MALICIOUS</span>`;
+    else if (rep > 30) repBadge = `<span class="rep-badge rep-risky">${rep}%_RISKY</span>`;
+    else if (conn.remote_ip && conn.remote_ip !== '*') repBadge = `<span class="rep-badge rep-stable">${rep}%_STABLE</span>`;
+    else repBadge = `<span class="text-dim">-</span>`;
+
     const cells = [
-        { content: `<strong style="color: ${isThreat ? 'var(--danger)' : 'var(--text-main)'}">${conn.process_name}</strong>` },
-        { content: `<span class="mono text-muted">${conn.pid}</span>` },
-        { content: `<span class="mono">${conn.remote_address}</span>` },
+        { content: `<strong style="color: ${isThreat ? 'var(--danger)' : 'var(--text-main)'}">${conn.process_name || 'unknown'}</strong>` },
+        { content: `<span class="mono text-muted">${conn.pid || '?'}</span>` },
+        { content: `<span class="mono">${conn.remote_address || (conn.remote_ip || '*') + ':?'}</span>` },
         { content: `<span class="mono text-success">${conn.in_kbps > 0 ? conn.in_kbps.toFixed(1) : '0.0'}</span>`, className: "text-right" },
         { content: `<span class="mono text-danger">${conn.out_kbps > 0 ? conn.out_kbps.toFixed(1) : '0.0'}</span>`, className: "text-right" },
-        { content: `<span class="text-muted">${conn.location}</span>` },
+        { content: `<span class="text-muted">${conn.location || 'Unknown'}</span>` },
+        { content: repBadge },
         { content: `<span style="color: ${aiColor}; font-weight: 600;">${conn.ai_level} <span class="mono text-muted">(${conn.ai_score})</span></span>` },
         { content: statusHtml, className: "text-right" },
         {
@@ -229,6 +266,7 @@ function initPolling() {
 
                 renderTable();
                 updateMap();
+
             }
         } catch (e) {
             console.error("Telemetry Endpoint Error:", e);
@@ -237,6 +275,22 @@ function initPolling() {
 
     fetchTelemetry();
     setInterval(fetchTelemetry, CONFIG.POLL_RATE);
+
+    // 2. Global Social Proof Polling (Slower rate: 30s)
+    async function fetchGlobalStats() {
+        try {
+            const resp = await fetch('/api/stats/global');
+            const json = await resp.json();
+            if (json.status === 'success') {
+                const el = document.getElementById('global-downloads');
+                if (el) el.innerText = json.data.downloads + json.data.stars;
+            }
+        } catch (e) {
+            console.error("Stats Error:", e);
+        }
+    }
+    fetchGlobalStats();
+    setInterval(fetchGlobalStats, 30000);
 }
 
 // --- ACTION API ---
@@ -306,6 +360,10 @@ async function loadSettings() {
         if (json.status === 'success') {
             document.getElementById('tg-token').value = json.data.telegram_bot_token || '';
             document.getElementById('tg-chat-id').value = json.data.telegram_chat_id || '';
+
+            const autoToggle = document.getElementById('auto-shield-toggle');
+            autoToggle.checked = json.data.autonomous_defense || false;
+            updateDefenseUI(autoToggle.checked);
         }
     } catch (e) {
         console.error("Load Settings Error:", e);
@@ -318,6 +376,8 @@ async function saveSettings() {
     const tgChat = document.getElementById('tg-chat-id').value.trim();
 
     try {
+        const autoShield = document.getElementById('auto-shield-toggle').checked;
+
         const response = await fetch('/api/settings', {
             method: 'POST',
             headers: {
@@ -326,10 +386,12 @@ async function saveSettings() {
             },
             body: JSON.stringify({
                 telegram_bot_token: tgToken,
-                telegram_chat_id: tgChat
+                telegram_chat_id: tgChat,
+                autonomous_defense: autoShield ? "True" : "False"
             })
         });
         const data = await response.json();
+        updateDefenseUI(autoShield);
         alert(data.message || "Settings Saved");
     } catch (e) {
         console.error("Save Settings Error:", e);
@@ -347,3 +409,16 @@ async function testTelegram() {
         alert("Failed to send test alert");
     }
 }
+
+function updateDefenseUI(active) {
+    const autoBadge = document.getElementById('auto-status-badge');
+    const manualBadge = document.getElementById('manual-status-badge');
+    if (active) {
+        autoBadge.style.display = 'flex';
+        manualBadge.style.display = 'none';
+    } else {
+        autoBadge.style.display = 'none';
+        manualBadge.style.display = 'flex';
+    }
+}
+

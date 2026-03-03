@@ -13,6 +13,7 @@
     <!-- Leaflet for Map -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -21,7 +22,7 @@
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
         rel="stylesheet">
 
-    <link rel="stylesheet" href="/static/css/main.css">
+    <link rel="stylesheet" href="/static/css/main.css?v=6">
 </head>
 
 <body>
@@ -34,13 +35,48 @@
             </div>
 
             <div class="header-stats">
-                <div class="stat-pill">
+                <div class="stat-pill" title="System Status: Ready">
                     <div class="status-indicator online"></div>
-                    <span>SYSTEM ONLINE</span>
+                    <span>CORE_ACTIVE</span>
+                </div>
+                <div class="stat-pill" title="Global Community Adoption">
+                    <i data-lucide="globe" style="width: 14px; height: 14px; color: var(--accent);"></i>
+                    <span id="global-downloads">0</span> ADOPTIONS
                 </div>
                 <div class="stat-pill">
                     <i data-lucide="activity" style="width: 14px; height: 14px; color: var(--text-dim);"></i>
-                    <span id="conn-count">0</span> Sockets
+                    <span id="conn-count">0</span> SOCKETS
+                </div>
+                <a href="/download/sentinel" class="stat-pill"
+                    style="text-decoration: none; border: 1px solid var(--accent); color: var(--text-main);"
+                    title="Download Latest Executable">
+                    <i data-lucide="download" style="width: 14px; height: 14px; color: var(--accent);"></i>
+                    <span>GET_EXE</span>
+                </a>
+                <div class="dropdown">
+                    <button class="btn-premium" title="Export Security Report">
+                        <i data-lucide="file-down" style="width: 18px; height: 18px; margin-right: 4px;"></i>
+                        <span>EXPORT REPORT</span>
+                    </button>
+                    <div class="dropdown-content">
+                        <div class="dropdown-header">Select Format</div>
+                        <a href="javascript:void(0)" onclick="exportReport('pdf')">
+                            <i data-lucide="file-text"></i>
+                            <div class="flex-column">
+                                <span class="fw-600">Professional PDF</span>
+                                <small style="display:block; font-size: 10px; color: var(--text-dim);">Detailed
+                                    Forensics</small>
+                            </div>
+                        </a>
+                        <a href="javascript:void(0)" onclick="exportReport('html')">
+                            <i data-lucide="file-code"></i>
+                            <div class="flex-column">
+                                <span class="fw-600">Tactical HTML</span>
+                                <small style="display:block; font-size: 10px; color: var(--text-dim);">Interactive
+                                    View</small>
+                            </div>
+                        </a>
+                    </div>
                 </div>
                 <button class="action-btn" onclick="toggleSettings()" title="Settings">
                     <i data-lucide="settings" style="width: 16px; height: 16px;"></i>
@@ -61,6 +97,7 @@
                 <div id="radar-map" class="map-container"></div>
             </section>
 
+
             <!-- Right/Bottom Area: Data Table -->
             <section class="card table-card">
                 <div class="card-header flex-between">
@@ -77,6 +114,7 @@
                                 <th class="text-right">IN (KB/s)</th>
                                 <th class="text-right">OUT (KB/s)</th>
                                 <th>Location</th>
+                                <th>Reputation</th>
                                 <th>Intelligence</th>
                                 <th class="text-right">Status</th>
                                 <th class="text-right">Actions</th>
@@ -94,35 +132,62 @@
     <!-- Settings Panel (Sidebar) -->
     <div id="settings-panel" class="settings-panel">
         <div class="settings-header">
-            <h3>System Settings</h3>
+            <h3>System Terminal</h3>
             <button class="close-btn" onclick="toggleSettings()"><i data-lucide="x"></i></button>
         </div>
         <div class="settings-content">
             <div class="settings-group">
-                <label><i data-lucide="send"></i> Telegram Notifications</label>
+                <label><i data-lucide="webhook"></i> Telegram Intelligence</label>
                 <div class="input-field">
-                    <input type="password" id="tg-token" placeholder="Bot Token">
+                    <input type="password" id="tg-token" placeholder="Bot API Token">
                     <button class="icon-toggle" onclick="toggleField('tg-token')"><i data-lucide="eye"></i></button>
                 </div>
                 <div class="input-field">
-                    <input type="text" id="tg-chat-id" placeholder="Chat ID">
+                    <input type="text" id="tg-chat-id" placeholder="Chat Identifier">
                 </div>
             </div>
 
+            <div class="settings-group">
+                <label><i data-lucide="shield-alert"></i> Tactical Defense</label>
+                <div class="flex-between" style="padding: 0.5rem 0;">
+                    <span class="text-dim" style="font-size: 0.85rem;">Autonomous AI Shielding</span>
+                    <label class="switch">
+                        <input type="checkbox" id="auto-shield-toggle">
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+                <small class="text-dim" style="font-size: 10px; display: block; margin-top: 4px;">
+                    When active, Kharma will proactively block IPs with threat scores > 8.5.
+                </small>
+            </div>
+
             <div class="settings-actions">
-                <button class="action-btn success w-100" onclick="saveSettings()">Save Config</button>
-                <button class="action-btn w-100" onclick="testTelegram()">Test Alert</button>
+                <button class="btn-premium w-100" onclick="saveSettings()">Apply Configuration</button>
+                <button class="action-btn w-100" onclick="testTelegram()"
+                    style="justify-content: center; margin-top: 0.5rem;">
+                    <i data-lucide="mail"></i> Send Test Pulse
+                </button>
             </div>
         </div>
         <div class="settings-footer">
-            <p>Shield Mode: Active Intelligence</p>
+            <div id="auto-status-badge" class="stat-pill"
+                style="border: none; background: transparent; justify-content: center; width: 100%; display: none;">
+                <div class="status-indicator online"
+                    style="background-color: var(--accent); box-shadow: 0 0 10px var(--accent);"></div>
+                <span style="color: var(--accent); font-weight: 700;">AUTONOMOUS_MODE: ACTIVE</span>
+            </div>
+            <div id="manual-status-badge" class="stat-pill"
+                style="border: none; background: transparent; justify-content: center; width: 100%;">
+                <div class="status-indicator online"></div>
+                <span style="color: var(--text-main);">SHIELD_MODE: PASSIVE_MONITOR</span>
+            </div>
         </div>
     </div>
     <div id="overlay" class="overlay" onclick="toggleSettings()"></div>
 
     <!-- Socket.IO -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
-    <script src="/static/js/app.js?v=3"></script>
+    <script src="/static/js/app.js?v=6"></script>
 </body>
 
 </html>

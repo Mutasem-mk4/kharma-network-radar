@@ -9,3 +9,4 @@ Flask
 Flask-Cors
 scapy
 flask-talisman
+reportlab

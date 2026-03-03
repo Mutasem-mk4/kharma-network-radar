@@ -1,118 +1,75 @@
 <div align="center">
-  <img src="https://img.icons8.com/nolan/256/radar.png" alt="Kharma Logo" width="120" />
+  <img src="kharma/static/img/logo.png" alt="Kharma Sentinel Logo" width="160" />
   <h1>Kharma Sentinel</h1>
-  <p><b>Elite Proactive Defense & Enterprise-Grade Network Intelligence</b></p>
+  <p><b>Advanced Offensive Intelligence & Real-Time Active Defense Suite</b></p>
   <p>
-    <a href="https://pypi.org/project/kharma-radar/"><img src="https://img.shields.io/pypi/v/kharma-radar?label=PyPI%20Release&color=10b981&style=flat-square" alt="PyPI" /></a>
-    <img src="https://img.shields.io/pypi/dm/kharma-radar?color=blue&style=flat-square" alt="Downloads" />
-    <img src="https://img.shields.io/badge/Python-3.8+-blue?style=flat-square&logo=python" alt="Python 3.8+" />
-    <img src="https://img.shields.io/github/license/Mutasem-mk4/kharma-network-radar?color=purple&style=flat-square" alt="License MIT" />
+    <a href="#"><img src="https://img.shields.io/badge/Status-Production--Ready-success?style=for-the-badge&logo=github" alt="Status" /></a>
+    <a href="#"><img src="https://img.shields.io/badge/Security-Hardened-blue?style=for-the-badge&logo=hackthebox" alt="Security" /></a>
+    <a href="#"><img src="https://img.shields.io/badge/Developed%20By-Mutasem-blueviolet?style=for-the-badge" alt="Developer" /></a>
   </p>
-  <p><i>Kharma Sentinel is an elite, proactive network defense suite designed to eliminate 'blind spots' in system visibility. It transforms raw network data into actionable security intelligence using real-time radar mapping, behavioral analysis, and automated threat neutralization.</i></p>
 </div>
 
 ---
 
-## 🛡️ The Evolution of Defense
+## 🛡️ Beyond Monitoring: Active Sovereignty
 
-Kharma is not just a monitor; it's an **Active Defense System**. It acts as an all-seeing eye for your operating system, providing a stunning, high-performance radar that intercepts outbound connections, unmasks the executable initiating the socket, runs it against 70+ Anti-Virus engines in the cloud, and plots targets on a global map—all updated every 2 seconds.
+**Kharma Sentinel** is not just another network monitor. It is a high-performance, proactive defense system designed for security engineers who demand absolute visibility and control over their infrastructure. 
+
+In a world of silent data exfiltration and background backdoors, Kharma acts as your **Digital Eyes**, unmasking every hidden connection, validating processes against global threat intelligence, and automatically neutralizing threats before they can execute their payloads.
 
 ---
 
-## 🔥 Elite Features
+## 🔥 Professional Features
 
-- 🌐 **Evolution Web Dashboard:** A stunning glassmorphism interface serving real-time radar data, bandwidth charts, and security event logs.
-- 📡 **Deep Packet Inspection (DPI):** Real-time protocol detection and signature matching to catch SQLi, XSS, and anomalous payloads.
-- 🌍 **Elite Geo-Fencing:** Reactive nation-blocking. Automatically firewall-block entire countries from the dashboard with one click.
-- 🦠 **Enterprise EDR (VirusTotal):** Natively extracts binary paths, computes SHA-256 hashes, and conducts cloud-based malware validation.
-- ⚔️ **Active Defense (Auto-Kill):** Instantly terminates processes that connect to known malicious IPs or match flagged binary hashes.
-- 🤖 **Guardian Bot Alerts:** Push critical breach alerts dynamically to Telegram or Discord as they happen.
-- 🐝 **Multi-Node Swarm:** Federate multiple Kharma nodes into a single 'Hive' view for global enterprise oversight.
-- 🛰️ **Offline Geo-IP Engine:** Powered by `MaxMind GeoLite2` for **0ms lag** resolution and 100% privacy.
-- 🗄️ **Time Machine Forensics:** Persistent SQLite logging for detailed post-incident analysis and reporting.
+- ⚡ **Minimalist High-Performance Dashboard:** A streamlined, surgical-grade interface built for low latency and high data density.
+- 📡 **Deep Packet Inspection (DPI):** Real-time protocol detection and signature matching (SQLi, XSS, anomalous payloads).
+- 🌍 **Dynamic Geo-Intelligence:** Powered by an offline MaxMind engine for 0ms lag resolution. Visualizes every socket on a global map.
+- 🦠 **Automated EDR (VirusTotal Integration):** Computes SHA-256 hashes on the fly and validates them against 70+ Anti-Virus engines.
+- ⚔️ **Active Defense (Safe-Shield):** Automatically terminates malware-associated processes and blocks malicious IPs at the OS level.
+- 🤖 **Telegram Guardian Bot:** Receive critical breach alerts directly to your mobile device via Telegram.
+- 🗄️ **Forensic Time Machine:** Persistent SQLite logging for detailed post-incident analysis.
+
 ---
 
-## 🚀 Installation & Setup
+## 🚀 Quick Launch
 
-### ⚡ One-Click Installer (Recommended)
-The fastest way to get started. Automatically handles environment setup and dependencies.
+### 📦 Installation
+Currently, Kharma can be deployed via the repository. (PyPI coming soon).
 
-**Windows (PowerShell):**
-```powershell
-iwr -useb https://raw.githubusercontent.com/Mutasem-mk4/kharma-network-radar/main/install_sentinel.ps1 | iex
-```
-
-**Linux/macOS (Bash):**
 ```bash
-curl -sSL https://raw.githubusercontent.com/Mutasem-mk4/kharma-network-radar/main/install_sentinel.sh | bash
+git clone https://github.com/Mutasem-mk4/kharma-network-radar.git
+cd kharma-network-radar
+pip install -r requirements.txt
+python main.py web
 ```
 
-### 🆕 Option 2: Standalone Portable EXE
-Download the zero-dependency executable. No Python installation required!
-- **Download:** [kharma.exe (v11.0.1)](https://github.com/Mutasem-mk4/kharma-network-radar/releases)
+### 💻 Command Line Interface
+Kharma features a rich, professional CLI for system administrators.
 
-### Option 3: Developer Install (via PyPI)
-```bash
-pip install kharma-radar
-```
-*If `pip` is not recognized, try:* `python -m pip install kharma-radar`
-
----
-
-## 💻 Quick Start Guide
-
-Kharma is an intelligent CLI that relies on the incredibly styled `rich-click` interface. Run `kharma --help` at any time.
-
-| Command | Description |
+| Command | Action |
 |---|---|
-| `kharma run` | Start the Live Network Radar Dashboard in the Terminal. |
-| `kharma run --protect` | Start Dashboard + **Auto-Kill Malware** (Active Defense). |
-| `kharma web` | Launch the Dark Web UI Dashboard (Localhost). |
-| `kharma daemon start` | Deploy the silent Background Monitor. |
-| `kharma history` | View historical connections (Time Machine). |
-| `kharma config vt <KEY>` | Register a free VirusTotal API Key for advanced EDR. |
-
-### 🌍 The Web UI Dashboard
-Get the ultimate Full-Stack experience visually tracking your network:
-```bash
-root@linux:~# kharma web --port 8080
-[*] Initializing Kharma Web Dashboard...
-[*] Spawning background data scanner loop...
-[*] Dashboard launched at: http://127.0.0.1:8080
-```
-*(Simply open your browser to the URL and watch the data flow!)*
+| `kharma run` | Start the Terminal UI Radar. |
+| `kharma run --protect` | Enable **Active Defense** (Auto-Kill Malware). |
+| `kharma web` | Launch the Professional Web Dashboard. |
+| `kharma daemon start` | Run as a background system guardian. |
 
 ---
 
-## 🏗️ Architecture
-
-Kharma is designed for maximum performance, minimal dependencies, and absolute oversight.
-
-- **Frontend:** `rich` (Terminal TUI) & `Tailwind.css + JavaScript` (Web UI).
-- **Backend Core:** `psutil` (Socket Hooks), `Flask` (REST API).
-- **Persistence:** Local `SQLite` for logging and `.mmdb` for GeoIP lookups.
+## 🏗️ Technical Architecture
+- **Core Engine:** Python 3.10+ (Asynchronous Socket Hooking)
+- **Frontend:** Vanilla JS / CSS (Optimized for speed) / Leaflet.js
+- **Backend:** Flask / JWT Security / JWT-based API
+- **Data:** MaxMind GeoIP / SQLite / Cloud Intelligence Modules
 
 ---
 
----
-
-## 🛠️ Troubleshooting
-
-### 1. "'pip' or 'kharma' is not recognized..." (Windows)
-This means Python is not in your System PATH.
-- **Fix:** Re-install Python and check **"Add Python to PATH"** in the installer.
-- **Quick Workaround:** Use `python -m pip install kharma-radar` and `python -m kharma`.
-
-### 2. "Python was not found..."
-You might have the "Windows App Execution Aliases" enabled.
-- **Fix:** Go to **Manage App Execution Aliases** in Windows settings and turn **OFF** the aliases for `python.exe` and `python3.exe`.
+## 🛡️ Security First
+All sensitive tokens (Telegram, VirusTotal) are stored securely and never transmitted in plain text. Kharma is designed with privacy and system stability as the top priorities.
 
 ---
-
-## 🛡️ Disclaimer
-*Kharma is developed strictly for educational purposes, system administration, and defensive cybersecurity operations. The author is not responsible for any misuse or damage caused by terminating critical system processes via the Auto-Kill features.*
 
 <div align="center">
-  <b>Developed by Mutasem</b><br>
-  <i>Cybersecurity & Software Engineer</i>
+  <h3>Designed & Engineered by <a href="https://github.com/Mutasem-mk4">Mutasem</a></h3>
+  <p><i>Kharma Sentinel - Your Network, Your Rules.</i></p>
 </div>
+

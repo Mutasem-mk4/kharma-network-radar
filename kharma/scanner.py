@@ -8,12 +8,14 @@ class NetworkScanner:
         self.connections_buffer = []
         self.process_names = {}
         self.process_exe = {}
+        self.process_cache = {} # pid -> psutil.Process instance
         self.flow_map = {} # Maps (local_ip, local_port) -> PID
         self.io_stats = {} # pid -> io_counters
         self._lock = threading.Lock()
         self.is_running = False
+        self.scan_count = 0
         
-    def start_background_scan(self, interval=0.5):
+    def start_background_scan(self, interval=1.5):
         """Starts a background thread to scan connections continuously."""
         if not self.is_running:
             self.is_running = True
@@ -23,23 +25,36 @@ class NetworkScanner:
     def _scanner_loop(self, interval):
         """Daemon loop for periodic system scanning."""
         while self.is_running:
+            self.scan_count += 1
             try:
                 # 1. Capture raw connections
                 raw_conns = psutil.net_connections(kind='inet')
                 
                 # 2. Update process mapping (Optimized: only for new PIDs)
                 current_pids = {conn.pid for conn in raw_conns if conn.pid}
+                
+                # Cleanup cache for dead processes
+                dead_pids = set(self.process_cache.keys()) - current_pids
+                for pid in dead_pids:
+                    self.process_cache.pop(pid, None)
+                    self.process_names.pop(pid, None)
+                    self.process_exe.pop(pid, None)
+                    self.io_stats.pop(pid, None)
+
                 for pid in current_pids:
                     try:
                         # Update cache if missing
-                        if pid not in self.process_names:
+                        if pid not in self.process_cache:
                             p = psutil.Process(pid)
+                            self.process_cache[pid] = p
                             self.process_names[pid] = p.name()
                             self.process_exe[pid] = p.exe()
                         
-                        # Always update IO stats for active processes
-                        p = psutil.Process(pid)
-                        self.io_stats[pid] = p.io_counters()
+                        # Throttle IO stats collection (every 5th scan) to save CPU
+                        if self.scan_count % 5 == 0 or pid not in self.io_stats:
+                            p = self.process_cache[pid]
+                            self.io_stats[pid] = p.io_counters()
+
                     except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                         if pid not in self.process_names:
                             self.process_names[pid] = "Unknown/Access Denied"
@@ -61,8 +76,6 @@ class NetworkScanner:
                         
                         remote_ip = conn.raddr.ip if conn.raddr else "0.0.0.0"
                         remote_port = conn.raddr.port if conn.raddr else 0
-                        # Include meaningful local traffic if it's a listener or localhost so UI isn't empty.
-                        is_local = remote_ip in ('127.0.0.1', '::1', '0.0.0.0')
                         
                         processed_conns.append({
                             'pid': conn.pid,
