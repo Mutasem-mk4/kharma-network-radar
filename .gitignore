@@ -22,3 +22,28 @@ Thumbs.db
 malware_ips.txt
 GeoLite2-City.mmdb
 kharma_history.db
+
+# Logs and debugs
+*.log
+*.txt
+!requirements.txt
+!README.md
+!headers.txt
+!hash.txt
+!sha.txt
+!sha8.txt
+!trace.txt
+*.json
+!debug_dashboard.json
+!debug_radar.json
+!debug_radar2.json
+!runs.json
+!runs_utf8.json
+!bandit_final_check.json
+!bandit_result.json
+
+# Builds
+*.exe
+tmp_verify_hash/
+snap/
+debian/
