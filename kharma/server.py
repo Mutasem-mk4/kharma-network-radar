@@ -117,6 +117,10 @@ class KharmaWebServer:
                 'https://*.basemaps.cartocdn.com',
                 'https://img.icons8.com',
                 'https://unpkg.com'
+            ],
+            'connect-src': [
+                '\'self\'',
+                'https://*.basemaps.cartocdn.com'
             ]
         }
         Talisman(self.app, content_security_policy=csp, force_https=False)
@@ -134,6 +138,14 @@ class KharmaWebServer:
         
         # Persistent State: Load Pro License
         self.is_pro = self.forensics.get_setting("is_pro") == "True"
+
+        # Disable Caching for Development/Recovery
+        @self.app.after_request
+        def add_header(response):
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+            return response
         
         self._setup_routes()
 
@@ -579,6 +591,7 @@ class KharmaWebServer:
             return jsonify({"status": "error", "message": "INVALID LICENSE KEY"}), 403
 
         @self.app.route('/api/status', methods=['GET'])
+        @self._require_auth
         def get_status():
             # Get requester's IP for local map centering
             ip = request.remote_addr
@@ -801,7 +814,7 @@ class KharmaWebServer:
             except psutil.NoSuchProcess:
                 return jsonify({"status": "error", "message": f"PID {pid} not found."}), 404
             except psutil.AccessDenied:
-                return jsonify({"status": "error", "message": f"Access Denied. Run Kharma as Admin/Root to kill PID {pid}."}), 403
+                return jsonify({"status": "error", "message": f"Insufficient Privileges. Please restart Kharma Sentinel as Administrator to perform this action (PID {pid})."}), 403
             except Exception as e:
                 return jsonify({"status": "error", "message": f"Failed to kill process: {e}"}), 500
 
@@ -1036,6 +1049,7 @@ class KharmaWebServer:
             return jsonify({"status": "success", "message": f"✅ Added {len(demo_events)} demo events to history."}), 200
 
         @self.app.route('/api/report/export', methods=['GET'])
+        @self._require_auth
         def export_security_report():
             """Generates and serves a premium security report (HTML or PDF)."""
             from flask import Response, request
@@ -1106,7 +1120,7 @@ class KharmaWebServer:
         log = logging.getLogger('werkzeug')
         log.setLevel(logging.ERROR)
         
-        self.socketio.run(self.app, host=self.host, port=self.port, debug=False)
+        self.socketio.run(self.app, host=self.host, port=self.port, debug=False, allow_unsafe_werkzeug=True)
 
 if __name__ == '__main__':
     import platform, sys, os

@@ -20,8 +20,46 @@ document.addEventListener("DOMContentLoaded", async () => {
     await initLocalCoords();
     initMap();
     initPolling();
+    initNotifications();
     lucide.createIcons();
+    window.KHARMA_JS_VERSION = 'v10_RECOVERY';
+    console.log("KHARMA JS LOADED: " + window.KHARMA_JS_VERSION);
 });
+
+// --- NOTIFICATION ENGINE ---
+function initNotifications() {
+    console.log("Notification system ready.");
+}
+
+function showToast(message, type = 'info') {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+
+    const icons = {
+        success: 'check-circle',
+        danger: 'alert-triangle',
+        warning: 'alert-circle',
+        info: 'info'
+    };
+
+    toast.innerHTML = `
+        <i data-lucide="${icons[type] || 'info'}" class="toast-icon"></i>
+        <span>${message}</span>
+    `;
+
+    container.appendChild(toast);
+    lucide.createIcons({ root: toast });
+
+    // Animate in
+    setTimeout(() => toast.classList.add('visible'), 10);
+
+    // Remove after 4s
+    setTimeout(() => {
+        toast.classList.remove('visible');
+        setTimeout(() => toast.remove(), 500);
+    }, 4000);
+}
 
 async function exportReport(format) {
     const token = document.querySelector('meta[name="session-token"]').content;
@@ -74,7 +112,7 @@ function initMap() {
     });
 
     L.tileLayer(CONFIG.MAP_TILE, {
-        subdomains: 'abcd',
+        subdomains: 'cd',
         maxZoom: 20
     }).addTo(map);
 
@@ -153,13 +191,17 @@ function renderTable() {
         if (!_rowCache.has(rowKey)) {
             const tr = document.createElement('tr');
             tr.id = `row-${conn.pid}-${conn.remote_ip}`;
-            for (let i = 0; i < 9; i++) tr.appendChild(document.createElement('td'));
             radarBody.appendChild(tr);
             _rowCache.set(rowKey, { tr: tr, lastSeen: now, data: conn });
         }
 
         const entry = _rowCache.get(rowKey);
         const tr = entry.tr;
+
+        // Ensure exactly 10 columns exist
+        while (tr.children.length < 10) tr.appendChild(document.createElement('td'));
+        while (tr.children.length > 10) tr.lastElementChild.remove();
+
         entry.lastSeen = now;
         entry.data = conn;
 
@@ -167,7 +209,11 @@ function renderTable() {
         tr.style.opacity = "1";
         tr.style.filter = "none";
 
-        renderRowCells(tr, conn, isThreat, false);
+        try {
+            renderRowCells(tr, conn, isThreat, false);
+        } catch (e) {
+            console.error("Row render error:", e);
+        }
     });
 
     // Handle decaying rows
@@ -218,6 +264,7 @@ function renderRowCells(tr, conn, isThreat, isDead) {
             content: `
             <div style="display:flex; gap:0.5rem; justify-content: flex-end;">
                 <button class="action-btn" onclick="apiAction('report', '${conn.remote_ip}')" title="Flag IP"><i data-lucide="flag" style="width:14px; height:14px;"></i></button>
+                <button class="action-btn warning" onclick="apiAction('shield', '${conn.remote_ip}')" title="Shield (Block IP)"><i data-lucide="shield" style="width:14px; height:14px;"></i></button>
                 <button class="action-btn danger" onclick="apiAction('kill', ${conn.pid})" title="Kill Process"><i data-lucide="zap" style="width:14px; height:14px;"></i></button>
             </div>
         `, className: "text-right"
@@ -226,9 +273,11 @@ function renderRowCells(tr, conn, isThreat, isDead) {
 
     cells.forEach((c, idx) => {
         const cell = tr.children[idx];
-        if (c.className) cell.className = c.className;
-        if (cell.innerHTML !== c.content) {
-            cell.innerHTML = c.content;
+        if (cell) {
+            if (c.className) cell.className = c.className;
+            if (cell.innerHTML !== c.content) {
+                cell.innerHTML = c.content;
+            }
         }
     });
 
@@ -264,8 +313,8 @@ function initPolling() {
                 const countBadge = document.getElementById('conn-count');
                 if (countBadge) countBadge.innerText = allConnections.length;
 
-                renderTable();
-                updateMap();
+                updateMap(); // Load map first
+                renderTable(); // Then table
 
             }
         } catch (e) {
@@ -306,6 +355,10 @@ async function apiAction(endpoint, target) {
         method = 'DELETE';
     } else if (endpoint === 'report') {
         body = JSON.stringify({ ip: target, reason: "Manual UI Flag" });
+    } else if (endpoint === 'shield') {
+        url = `/api/shield`;
+        method = 'POST';
+        body = JSON.stringify({ ip: target });
     }
 
     const options = {
@@ -324,7 +377,9 @@ async function apiAction(endpoint, target) {
 
         // Quick visual feedback by refreshing telemetry immediately
         if (response.status === 200) {
-            // Success
+            showToast(data.message || "Action successful", "success");
+        } else {
+            showToast(data.message || "Action failed", "danger");
         }
     } catch (e) {
         console.error(e);

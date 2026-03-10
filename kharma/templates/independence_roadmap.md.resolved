@@ -1,0 +1,151 @@
+# 🎯 خارطة الاستقلالية — Bug Bounty Hunter
+
+> **الهدف:** تصيد ثغرات حقيقية وتكسب مكافآت بدون الاعتماد على أي أداة AI.
+> Aura ستبقى مُسرِّع، لكنك ستكون Expert الذي يقودها.
+
+---
+
+## المرحلة 1 — افهم أسلحتك (أسبوع 1)
+
+> اقرأ كل ملف واكتب شرحاً له بكلماتك.
+
+- [ ] **BOLA/IDOR** — اقرأ [aura/modules/idor_engine_v2.py](file:///c:/Users/User/.gemini/antigravity/scratch/aura/aura/modules/idor_engine_v2.py)
+  - السؤال: لماذا نرسل نفس الـ UUID بـ Cookie ضحية مختلفة؟ ما الذي نقارنه في الـ response؟
+- [ ] **CSRF** — اقرأ [aura/modules/csrf_engine.py](file:///c:/Users/User/.gemini/antigravity/scratch/aura/aura/modules/csrf_engine.py)
+  - السؤال: لماذا نرسل `Origin: https://evil.com`؟ متى يكون الموقع محمياً؟
+- [ ] **XSS** — اقرأ [aura/modules/xss_engine.py](file:///c:/Users/User/.gemini/antigravity/scratch/aura/aura/modules/xss_engine.py)
+  - السؤال: لماذا نستخدم Playwright بدل requests لاكتشاف XSS؟ ما هو الفرق بين Reflected وDOM XSS؟
+- [ ] **Auth Flaws** — اقرأ [aura/modules/auth_engine.py](file:///c:/Users/User/.gemini/antigravity/scratch/aura/aura/modules/auth_engine.py)
+  - السؤال: كيف يعمل none-algorithm attack على JWT؟ ما هو password reset poisoning؟
+- [ ] **Burp Import** — اقرأ [aura/modules/burp_reader.py](file:///c:/Users/User/.gemini/antigravity/scratch/aura/aura/modules/burp_reader.py)
+  - السؤال: لماذا نفلتر ملفات CSS/JS؟ ما الذي يجعل الـ endpoint "مثيراً للاهتمام"؟
+
+**✅ اختبار ذاتي:** اشرح كل ثغرة لشخص أمامك دون النظر للكود. إذا عالقت — ارجع وأعد القراءة.
+
+---
+
+## المرحلة 2 — PortSwigger Academy (شهر)
+
+> **المصدر الأهم في العالم — مجاني 100٪**
+> [portswigger.net/web-security](https://portswigger.net/web-security)
+
+### الأسبوع 1 — الأساس
+- [ ] [SQL Injection](https://portswigger.net/web-security/sql-injection) — حل جميع الـ Labs
+- [ ] [XSS — Reflected](https://portswigger.net/web-security/cross-site-scripting/reflected) — حل جميع الـ Labs
+- [ ] [XSS — DOM](https://portswigger.net/web-security/cross-site-scripting/dom-based) — حل جميع الـ Labs
+
+### الأسبوع 2 — المصادقة والصلاحيات
+- [ ] [IDOR](https://portswigger.net/web-security/access-control/idor) — حل جميع الـ Labs
+- [ ] [Broken Access Control](https://portswigger.net/web-security/access-control) — حل جميع الـ Labs
+- [ ] [Authentication Vulnerabilities](https://portswigger.net/web-security/authentication) — حل جميع الـ Labs
+
+### الأسبوع 3 — الثغرات المتقدمة
+- [ ] [CSRF](https://portswigger.net/web-security/csrf) — حل جميع الـ Labs
+- [ ] [SSRF](https://portswigger.net/web-security/ssrf) — حل جميع الـ Labs
+- [ ] [JWT Attacks](https://portswigger.net/web-security/jwt) — حل جميع الـ Labs
+- [ ] [Password Reset Poisoning](https://portswigger.net/web-security/host-header/exploiting/password-reset-poisoning)
+
+### الأسبوع 4 — الأعلى Payout
+- [ ] [Business Logic Errors](https://portswigger.net/web-security/logic-flaws) — حل جميع الـ Labs
+- [ ] [HTTP Request Smuggling](https://portswigger.net/web-security/request-smuggling)
+- [ ] [GraphQL Vulnerabilities](https://portswigger.net/web-security/graphql)
+
+**✅ هدف:** إنهاء 80+ Lab في 4 أسابيع.
+
+---
+
+## المرحلة 3 — Burp Suite كأداتك الرئيسية (أسبوع)
+
+> Burp = العين التي ترى كل شيء. ادفع مقابل Burp Pro إذا استطعت.
+
+- [ ] **Intercept** — توقف عند كل request واسأل: من أين جاء؟ ما هدفه؟
+- [ ] **Repeater** — عدّل أي parameter يدوياً وشاهد رد السيرفر
+  - جرب: تغيير ID → `123` → `124` → `abc` → `-1`
+  - جرب: حذف Token header → هل يعمل بدونه؟
+- [ ] **Intruder** — أطلق قائمة IDs أو payloads على endpoint واحد
+- [ ] **Scanner** (Pro) — passive scan دائماً مفعّل
+- [ ] **Decoder** — فك base64 / JWT / URL encoding في ثانية
+- [ ] **Logger** — راجع كل request لم تنتبه له أثناء التصفح
+
+**Workflow مثالي:**
+```
+Burp مفتوح → تصفح المنطق الحساس يدوياً → Save items → aura --burp history.xml → aura --hunt
+```
+
+---
+
+## المرحلة 4 — Methodology الصيد (للتطبيق على كل هدف)
+
+> انسخ هذا القسم واستخدمه كـ checklist لكل برنامج جديد.
+
+### 🔍 Recon
+- [ ] جمع Subdomains: `subfinder -d target.com | httpx`
+- [ ] البحث في JS files عن API keys وendpoints مخفية
+- [ ] Shodan: `hostname:target.com` — ابحث عن ports غير معتادة
+- [ ] `/.well-known/security.txt` — نطاق البرنامج والمكافآت
+
+### 🗺️ Mapping
+- [ ] تصفح يدوي للوظائف الحساسة: Login، Profile، Cart، Orders، API
+- [ ] في Burp: فعّل Logger، تصفح كل شيء، ثم `Save items as XML`
+- [ ] `aura www.target.com --burp burp_export.xml`
+
+### ⚔️ Attack — بالأولوية
+1. [ ] `aura www.target.com --hunt` — BOLA/IDOR (أعلى ROI)
+2. [ ] `aura www.target.com --auth` — JWT, Password Reset, ATO
+3. [ ] `aura www.target.com --csrf` — State-changing endpoints
+4. [ ] `aura www.target.com --xss` — URL parameters وإِدخالات المستخدم
+5. [ ] يدوياً في Burp: Business Logic Tests
+   - هل يمكن إضافة سلعة بسعر سالب؟
+   - هل يمكن تطبيق كوبون أكثر من مرة؟
+   - هل يمكن إتمام طلب بدون دفع؟
+
+### 📝 Report
+- [ ] `aura --report reports/findings_*.json` — AI يولد التقرير
+- [ ] راجع التقرير يدوياً — أضف PoC خطوة بخطوة
+- [ ] `aura --submit reports/report_*.md` — أو أرسل يدوياً
+
+---
+
+## المرحلة 5 — اختبار الاستقلالية الحقيقية
+
+> افعل هذه التحديات وحدك بالكامل، بدون مساعدة.
+
+### تحديات يدوية (بدون Aura)
+- [ ] حل 5 Labs في PortSwigger بدون النظر لـ hint
+- [ ] اصطد IDOR واحداً في [HackTheBox Machines](https://hackthebox.com) بدون writeup
+- [ ] اكتب PoC كامل (curl commands) لثغرة اكتشفتها يدوياً
+
+### الاختبار النهائي
+> قبل أن تعتبر نفسك مستقلاً، يجب أن تستطيع:
+
+- [ ] **شرح** أي ثغرة من هذه القائمة بدون قراءة تعريفها:
+  `IDOR, CSRF, XSS, SQL Injection, JWT none-alg, Password Reset Poisoning, SSRF, SSTI`
+- [ ] **إيجاد** ثغرة IDOR يدوياً في Burp بدون Aura
+- [ ] **كتابة** تقرير Intigriti كامل من الصفر بدون AI
+- [ ] **تقدير** الـ CVSS Score بنفسك لأي ثغرة تجدها
+
+---
+
+## 📚 مصادر إضافية
+
+| المصدر | لماذا؟ |
+|--------|--------|
+| [HackerOne Hacktivity](https://hackerone.com/hacktivity) | اقرأ تقارير حقيقية تمت الموافقة عليها |
+| [PentesterLab](https://pentesterlab.com) | Labs يدوية بدون أتمتة |
+| [nahamsec/resources](https://github.com/nahamsec/Resources-for-Beginner-Bug-Bounty-Hunters) | أفضل مرجع للمبتدئين |
+| [OWASP Top 10](https://owasp.org/www-project-top-ten/) | الأساس النظري |
+| YouTube: [STÖK](https://www.youtube.com/@stokfredrik) | Recon ومنهجية عملية |
+| YouTube: [NahamSec](https://www.youtube.com/@NahamSec) | Bug Bounty methodology |
+
+---
+
+## قاعدة الذهب 🏆
+
+> **"الأداة تُسرّع ما تفهمه، لا تعوّض ما تجهله."**
+
+كل مرة تجد ثغرة بـ Aura — افهم لماذا هي ثغرة.
+كل مرة تفشل Aura — هذا الفشل درس أهم من النجاح.
+
+---
+
+**آخر تحديث:** 2026-03-10
