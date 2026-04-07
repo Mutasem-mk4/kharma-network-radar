@@ -7,6 +7,9 @@
     <a href="#"><img src="https://img.shields.io/badge/Security-Hardened-blue?style=for-the-badge&logo=hackthebox" alt="Security" /></a>
     <a href="#"><img src="https://img.shields.io/badge/Developed%20By-Mutasem-blueviolet?style=for-the-badge" alt="Developer" /></a>
   </p>
+  <p>
+    <a href="https://pepy.tech/project/kharma-radar"><img src="https://static.pepy.tech/badge/kharma-radar" alt="PyPI Downloads" /></a>
+  </p>
 </div>
 
 ---
@@ -34,8 +37,15 @@ In a world of silent data exfiltration and background backdoors, Kharma acts as 
 ## 🚀 Quick Launch
 
 ### 📦 Installation
-Currently, Kharma can be deployed via the repository. (PyPI coming soon).
+Kharma can be installed directly via PyPI or deployed from the repository.
 
+**Via PyPI (Recommended):**
+```bash
+pip install kharma-radar
+kharma run
+```
+
+**Via Repository:**
 ```bash
 git clone https://github.com/Mutasem-mk4/kharma-network-radar.git
 cd kharma-network-radar
@@ -65,6 +75,16 @@ Kharma features a rich, professional CLI for system administrators.
 
 ## 🛡️ Security First
 All sensitive tokens (Telegram, VirusTotal) are stored securely and never transmitted in plain text. Kharma is designed with privacy and system stability as the top priorities.
+
+---
+
+## 💼 Support & Consulting
+
+Has **Kharma Sentinel** helped you secure your network or save time? 
+Consider giving the repository a ⭐ or supporting its continuous development!
+
+- **☕ Support the Project:** [Buy Me A Coffee / Sponsor via GitHub](https://github.com/sponsors/Mutasem-mk4)
+- **🏢 Enterprise Consulting:** I am available for consulting and custom integrations of Kharma or other security solutions into your corporate environment. For business inquiries, contact me at `kharma.mutasem@gmail.com`.
 
 ---
 
