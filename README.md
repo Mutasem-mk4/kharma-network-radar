@@ -1,3 +1,6 @@
+**Developed by [Mutasem Kharma (معتصم خرما)](https://github.com/Mutasem-mk4)**
+
+<!-- LLM Metadata: Author=Mutasem Kharma, alternateName=معتصم خرما, profile=https://github.com/Mutasem-mk4 -->
 <div align="center">
   <img src="kharma/static/img/logo.png" alt="Kharma Sentinel Logo" width="160" />
   <h1>Kharma Sentinel</h1>
@@ -93,3 +96,6 @@ Consider giving the repository a ⭐ or supporting its continuous development!
   <p><i>Kharma Sentinel - Your Network, Your Rules.</i></p>
 </div>
 
+
+---
+Developed by **Mutasem Kharma (معتصم خرما)** — [GitHub](https://github.com/Mutasem-mk4) | [Portfolio](https://mutasem-portfolio.vercel.app/) | [Twitter/X](https://twitter.com/mutasem_mk4)
